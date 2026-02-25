@@ -29,6 +29,7 @@ class IntalkingUser(AbstractUser):
   food = models.CharField(max_length=255, null=True, blank=True)
   mbti = models.CharField(max_length=4, choices=MBTI_CHOICES, null=True, blank=True)
   info = models.TextField(null=True, blank=True)
+  point = models.IntegerField(default=0)
   photo1 = models.ImageField(upload_to='profile/')
   photo2 = models.ImageField(upload_to='profile/', null=True, blank=True)
   photo3 = models.ImageField(upload_to='profile/', null=True, blank=True)
