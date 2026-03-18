@@ -1,6 +1,6 @@
 from ninja import Router, File, Form
 from ninja.files import UploadedFile
-from ninja.error import HttpError
+from ninja.errors import HttpError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from account.models import IntalkingUser
