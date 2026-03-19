@@ -4,8 +4,9 @@ from ninja.errors import HttpError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from account.models import IntalkingUser
-from account.schema import (SignupOutputSchema, TokenSchema, SigninSchema,
-  IsLoginSchema, IntalkingUserSchema, EditFanSchema, EditInflSchema)
+from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema,
+  TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, EditFanSchema, EditInflSchema)
+from typing import Optional
 from django.shortcuts import get_object_or_404
 from ninja_jwt.tokens import RefreshToken
 from ninja_jwt.schema import (TokenObtainPairInputSchema, 
@@ -13,10 +14,48 @@ from ninja_jwt.schema import (TokenObtainPairInputSchema,
 
 router = Router()
 
-@router.post('signup/', response=SignupOutputSchema, auth=None)
-def signup(request, email: str = Form(...)):
-  hashed = make_password()
-  user = IntalkingUser.objects.create(email=email)
+@router.post('signup/fan/', response=SignupOutputSchema, auth=None)
+def signupFan(request, payload: SignupFanSchema):
+  user = IntalkingUser.objects.create(
+    email=payload.email,
+    username=payload.email,
+    password=make_password(payload.password),
+    nickname=payload.nickname,
+    phone=payload.phone,
+    charnum=payload.character,
+    fan='FAN',
+  )
+  return user
+
+@router.post('signup/infl/', response=SignupOutputSchema, auth=None)
+def signupInfl(request,
+  email: str = Form(...), password: str = Form(...),
+  nickname: str = Form(...), phone: str = Form(...),
+  bank: str = Form(...), account: str = Form(...),
+  code: str = Form(...), hobby: str = Form(...),
+  food: str = Form(...), mbti: str = Form(...),
+  photo1: UploadedFile = File(...),
+  photo2: UploadedFile = File(None), 
+  photo3: UploadedFile = File(None),
+  photo4: UploadedFile = File(None), 
+  photo5: UploadedFile = File(None),
+  photo6: UploadedFile = File(None), 
+  photo7: UploadedFile = File(None),
+  photo8: UploadedFile = File(None),
+):
+  user = IntalkingUser.objects.create(
+    email=email, username=email,
+    password=make_password(password),
+    nickname=nickname, phone=phone,
+    bank=bank, account=account, code=code,
+    hobby=hobby, food=food, mbti=mbti,
+    fan='INFL',
+  )
+  for i, photo in enumerate([photo1, photo2, photo3, photo4, photo5, photo6, photo7, photo8], 1):
+    if photo:
+      getattr(user, f'photo{i}').save(photo.name, photo)
+  user.save()
+  return user
 
 @router.post('signin/', response=TokenSchema, auth=None)
 def signin(request, payload: SigninSchema):

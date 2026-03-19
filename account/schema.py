@@ -7,9 +7,26 @@ class SigninSchema(Schema):
   email: EmailStr
   password: str
 
-SignupFanSchema = create_schema(IntalkingUser, fields=['email'])
-SignupInflSchema = create_schema(IntalkingUser, fields=[])
-SignupOutputSchema = create_schema(IntalkingUser, fields=[])
+class SignupFanSchema(Schema):
+  email: EmailStr
+  password: str
+  nickname: str
+  phone: str
+  character: int
+
+class SignupInflSchema(Schema):
+  email: EmailStr
+  password: str
+  nickname: str
+  phone: str
+  bank: str
+  account: str
+  code: str
+  hobby: str
+  food: str
+  mbti: str
+
+SignupOutputSchema = create_schema(IntalkingUser, fields=['id', 'email', 'nickname', 'fan'])
 EditFanSchema = create_schema(IntalkingUser, fields=['email'])
 EditInflSchema = create_schema(IntalkingUser, fields=['email'])
 IntalkingUserSchema = create_schema(IntalkingUser, exclude=['password', 'is_staff', 'is_superuser',
