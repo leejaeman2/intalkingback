@@ -29,6 +29,9 @@ class SignupInflSchema(Schema):
 SignupOutputSchema = create_schema(IntalkingUser, fields=['id', 'email', 'nickname', 'fan'])
 EditFanSchema = create_schema(IntalkingUser, fields=['email'])
 EditInflSchema = create_schema(IntalkingUser, fields=['email'])
+InflSchema = create_schema(IntalkingUser, exclude=['password', 'is_staff', 'is_superuser',
+  'groups', 'user_permissions', 'last_login', 'account', 'bank', 'charnum', 'code', 'date_joined',
+  'id', 'is_active', 'point', 'phone', 'last_name', 'first_name'])
 IntalkingUserSchema = create_schema(IntalkingUser, exclude=['password', 'is_staff', 'is_superuser',
   'groups', 'user_permissions', 'last_login'])
 
@@ -40,6 +43,7 @@ class TokenSchema(Schema):
   nickname: str
   point: int = 0
   photo1: str | None = None
+  fan: str
 
 class AccessSchema(Schema):
   access: str

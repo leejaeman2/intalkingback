@@ -4,7 +4,7 @@ from ninja.errors import HttpError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from account.models import IntalkingUser
-from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema,
+from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
   TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, EditFanSchema, EditInflSchema)
 from typing import Optional
 from django.shortcuts import get_object_or_404
@@ -47,7 +47,7 @@ def signupInfl(request,
     email=email, username=email,
     password=make_password(password),
     nickname=nickname, phone=phone,
-    bank=bank, account=account, code=code,
+    bank=bank, account=account, code=code or None,
     hobby=hobby, food=food, mbti=mbti,
     fan='INFL',
   )
@@ -76,7 +76,8 @@ def signin(request, payload: SigninSchema):
     "email": authuser.email,
     "nickname": authuser.nickname,
     "point": authuser.point,
-    "photo1": authuser.photo1.url if authuser.photo1 else None
+    "photo1": authuser.photo1.url if authuser.photo1 else None,
+    "fan": authuser.fan
   }
 
 @router.post('refresh/', response=TokenObtainPairOutputSchema, auth=None)
@@ -114,7 +115,7 @@ def deleteUser(request):
   user.delete()
   return f"Delete {email}"
 
-@router.get('infl/', response=list[IntalkingUserSchema])
+@router.get('infl/', response=list[InflSchema])
 def getInflUsers(request):
   users = IntalkingUser.objects.filter(fan='INFL')
   return users
