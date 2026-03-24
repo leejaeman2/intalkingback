@@ -6,7 +6,7 @@ router = Router()
 
 @router.get('list/', response=list[NoticeOutputSchema])
 def get_notices(request):
-  notices = Notice.objects.all()
+  notices = Notice.objects.filter(is_deleted=False)
   return [
     {
       'id': n.id,
