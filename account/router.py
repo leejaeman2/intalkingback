@@ -5,7 +5,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from account.models import IntalkingUser
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
-  TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, EditFanSchema, EditInflSchema)
+  TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, EditFanSchema, EditInflSchema,
+  PointChargeSchema)
 from typing import Optional
 from django.shortcuts import get_object_or_404
 from ninja_jwt.tokens import RefreshToken
@@ -114,6 +115,13 @@ def deleteUser(request):
   email = user.email
   user.delete()
   return f"Delete {email}"
+
+@router.post('point/', response={200: dict})
+def chargePoint(request, payload: PointChargeSchema):
+  user = request.user
+  user.point += payload.price
+  user.save(update_fields=['point'])
+  return {'message': '포인트가 적립되었습니다', 'point': user.point}
 
 @router.get('infl/', response=list[InflSchema])
 def getInflUsers(request):

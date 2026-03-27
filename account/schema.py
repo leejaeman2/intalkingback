@@ -53,3 +53,7 @@ class RefreshSchema(Schema):
 
 class IsLoginSchema(Schema):
   islogin: bool
+
+class PointChargeSchema(Schema):
+  minutes: int
+  price: int

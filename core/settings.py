@@ -13,7 +13,7 @@ SECRET_KEY = 'django-insecure-zt)+ez7ddgis^no0*b48v944uicg$v&+_w8c(#hs!yg&xe700j
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', '10.0.2.2' ]
 
 # Application definition
 
@@ -113,6 +113,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CORS_ALLOWED_ORIGINS = [
+    'http://127.0.0.1:5173',
+    'http://localhost:5173',
+    'http://10.0.2.2',
+]
 
 CORS_ALLOWED_CREDENTIALS = True
 AUTH_USER_MODEL = 'account.IntalkingUser'
