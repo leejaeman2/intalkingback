@@ -3,7 +3,7 @@ from ninja.files import UploadedFile
 from ninja.errors import HttpError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
-from account.models import IntalkingUser
+from account.models import IntalkingUser, DeletedUser
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
   TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, EditFanSchema, EditInflSchema,
   PointChargeSchema)
@@ -112,6 +112,10 @@ def editProfile(request, payload: EditFanSchema):
 @router.delete('me/', response={204: str})
 def deleteUser(request):
   user = get_object_or_404(IntalkingUser, email=request.user.email)
+  DeletedUser.objects.create(
+    email=user.email, nickname=user.nickname,
+    phone=user.phone, fan=user.fan, point=user.point,
+  )
   email = user.email
   user.delete()
   return f"Delete {email}"

@@ -44,3 +44,15 @@ class IntalkingUser(AbstractUser):
 
   def __str__(self):
     return self.email
+
+
+class DeletedUser(models.Model):
+  email = models.EmailField(max_length=255)
+  nickname = models.CharField(max_length=255, null=True, blank=True)
+  phone = models.CharField(max_length=20)
+  fan = models.CharField(max_length=4)
+  point = models.IntegerField(default=0)
+  deleted_at = models.DateTimeField(auto_now_add=True)
+
+  def __str__(self):
+    return self.email
