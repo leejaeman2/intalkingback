@@ -109,6 +109,34 @@ def editProfile(request, payload: EditFanSchema):
   user.save()
   return user
 
+@router.patch('callmode/', response={200: dict})
+def toggleCallmode(request):
+  user = request.user
+  user.callmode = not user.callmode
+  user.save(update_fields=['callmode'])
+  return {'callmode': user.callmode}
+
+@router.patch('photos/', response={200: dict})
+def updatePhotos(request,
+  photo1: UploadedFile = File(None), photo2: UploadedFile = File(None),
+  photo3: UploadedFile = File(None), photo4: UploadedFile = File(None),
+  photo5: UploadedFile = File(None), photo6: UploadedFile = File(None),
+  photo7: UploadedFile = File(None), photo8: UploadedFile = File(None),
+  delete_photos: str = Form(''),
+):
+  user = request.user
+  for index in delete_photos.split(','):
+    index = index.strip()
+    if index.isdigit() and 1 <= int(index) <= 8:
+      field = getattr(user, f'photo{index}')
+      if field:
+        field.delete(save=False)
+  for i, photo in enumerate([photo1, photo2, photo3, photo4, photo5, photo6, photo7, photo8], 1):
+    if photo:
+      getattr(user, f'photo{i}').save(photo.name, photo, save=False)
+  user.save()
+  return {'message': '사진이 수정되었습니다'}
+
 @router.delete('me/', response={204: str})
 def deleteUser(request):
   user = get_object_or_404(IntalkingUser, email=request.user.email)
