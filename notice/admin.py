@@ -9,6 +9,8 @@ class NoticeAdmin(admin.ModelAdmin):
   search_fields = ('title', 'content')
   ordering = ('-created_at',)
   list_display_links = ('title',)
+  readonly_fields = ('author',)
+  fields = ('type', 'infl', 'author', 'title', 'content', 'is_deleted')
 
   def formfield_for_foreignkey(self, db_field, request, **kwargs):
     if db_field.name == 'infl':

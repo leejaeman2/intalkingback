@@ -6,7 +6,8 @@ from django.contrib.auth.hashers import make_password
 from account.models import IntalkingUser, DeletedUser
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
   TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, EditFanSchema, EditInflSchema,
-  PointChargeSchema)
+  PointChargeSchema, InflWithNoticeSchema)
+from notice.models import Notice
 from typing import Optional
 from django.shortcuts import get_object_or_404
 from ninja_jwt.tokens import RefreshToken
@@ -155,7 +156,23 @@ def chargePoint(request, payload: PointChargeSchema):
   user.save(update_fields=['point'])
   return {'message': '포인트가 적립되었습니다', 'point': user.point}
 
-@router.get('infl/', response=list[InflSchema])
+@router.get('infl/', response=list[InflWithNoticeSchema])
 def getInflUsers(request):
   users = IntalkingUser.objects.filter(fan='INFL')
-  return users
+  result = []
+  for user in users:
+    data = {
+      'email': user.email, 'username': user.username,
+      'nickname': user.nickname, 'fan': user.fan,
+      'hobby': user.hobby, 'food': user.food,
+      'mbti': user.mbti, 'info': user.info, 'callmode': user.callmode,
+      'has_fanmeeting': Notice.objects.filter(infl=user, type='FANMEETING', is_deleted=False).exists(),
+      'has_party': Notice.objects.filter(infl=user, type='PARTY', is_deleted=False).exists(),
+      'fanmeeting_id': getattr(Notice.objects.filter(infl=user, type='FANMEETING', is_deleted=False).first(), 'id', None),
+      'party_id': getattr(Notice.objects.filter(infl=user, type='PARTY', is_deleted=False).first(), 'id', None),
+    }
+    for i in range(1, 9):
+      photo = getattr(user, f'photo{i}')
+      data[f'photo{i}'] = photo.url if photo else None
+    result.append(data)
+  return result

@@ -57,3 +57,26 @@ class IsLoginSchema(Schema):
 class PointChargeSchema(Schema):
   minutes: int
   price: int
+
+class InflWithNoticeSchema(Schema):
+  email: str
+  username: str
+  nickname: str | None = None
+  fan: str
+  hobby: str | None = None
+  food: str | None = None
+  mbti: str | None = None
+  info: str | None = None
+  callmode: bool = True
+  photo1: str | None = None
+  photo2: str | None = None
+  photo3: str | None = None
+  photo4: str | None = None
+  photo5: str | None = None
+  photo6: str | None = None
+  photo7: str | None = None
+  photo8: str | None = None
+  has_fanmeeting: bool = False
+  has_party: bool = False
+  fanmeeting_id: int | None = None
+  party_id: int | None = None

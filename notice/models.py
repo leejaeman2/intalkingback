@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from account.models import IntalkingUser
 
 class Notice(models.Model):
@@ -18,6 +19,15 @@ class Notice(models.Model):
 
   class Meta:
     ordering = ['-created_at']
+
+  def clean(self):
+    if self.infl and self.type in ('FANMEETING', 'PARTY'):
+      existing = Notice.objects.filter(
+        infl=self.infl, type=self.type, is_deleted=False
+      ).exclude(pk=self.pk)
+      if existing.exists():
+        type_name = self.get_type_display()
+        raise ValidationError(f'{self.infl}에게 이미 진행 중인 {type_name}이(가) 있습니다.')
 
   def __str__(self):
     return f'[{self.get_type_display()}] {self.title}'
