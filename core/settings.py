@@ -123,16 +123,20 @@ if DB_ENGINE.endswith('sqlite3'):
         }
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': DB_ENGINE,
-            'NAME': DB_NAME,
-            'USER': os.getenv('DB_USER', ''),
-            'PASSWORD': os.getenv('DB_PASSWORD', ''),
-            'HOST': os.getenv('DB_HOST', ''),
-            'PORT': os.getenv('DB_PORT', ''),
-        }
+    db_default = {
+        'ENGINE': DB_ENGINE,
+        'NAME': DB_NAME,
+        'USER': os.getenv('DB_USER', ''),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', ''),
+        'PORT': os.getenv('DB_PORT', ''),
     }
+    if DB_ENGINE.endswith('mysql'):
+        db_default['OPTIONS'] = {
+            'charset': 'utf8mb4',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        }
+    DATABASES = {'default': db_default}
 
 
 # Password validation
