@@ -22,8 +22,8 @@ def turn_credentials(request):
         'password': password,
         'ttl': ttl,
         'urls': [
-            f'turns:{realm}:5349?transport=tcp',
-            f'turns:{realm}:5349?transport=udp',
             f'turn:{realm}:3478?transport=udp',
+            f'turn:{realm}:3478?transport=tcp',
+            f'turns:{realm}:5349?transport=tcp',
         ],
     }
