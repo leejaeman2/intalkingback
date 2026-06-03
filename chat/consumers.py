@@ -1,7 +1,14 @@
 import json
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from account.models import IntalkingUser
 
 online_users = {}
+
+
+@database_sync_to_async
+def get_callmode(email):
+  return IntalkingUser.objects.filter(email=email).values_list('callmode', flat=True).first()
 
 
 class CallConsumer(AsyncWebsocketConsumer):
@@ -32,18 +39,22 @@ class CallConsumer(AsyncWebsocketConsumer):
     target_channel = online_users.get(target)
 
     if msg_type == 'call_request':
-      if target_channel:
-        await self.channel_layer.send(target_channel, {
-          'type': 'relay',
-          'data': {
-            'type': 'incoming_call',
-            'caller': self.email,
-            'nickname': data.get('nickname'),
-            'photo1': data.get('photo1'),
-          },
-        })
-      else:
+      if not target_channel:
         await self.send(text_data=json.dumps({'type': 'call_unavailable', 'target': target}))
+        return
+      callmode = await get_callmode(target)
+      if callmode is False:
+        await self.send(text_data=json.dumps({'type': 'call_off', 'target': target}))
+        return
+      await self.channel_layer.send(target_channel, {
+        'type': 'relay',
+        'data': {
+          'type': 'incoming_call',
+          'caller': self.email,
+          'nickname': data.get('nickname'),
+          'photo1': data.get('photo1'),
+        },
+      })
       return
 
     if msg_type in ('call_accept', 'call_reject', 'call_end'):
