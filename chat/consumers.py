@@ -29,10 +29,17 @@ class CallConsumer(AsyncWebsocketConsumer):
     msg_type = data.get('type')
 
     if msg_type == 'register':
-      self.email = data.get('email')
-      if self.email:
-        online_users[self.email] = self.channel_name
-        await self.send(text_data=json.dumps({'type': 'registered', 'email': self.email}))
+      new_email = data.get('email')
+      if new_email:
+        existing_channel = online_users.get(new_email)
+        if existing_channel and existing_channel != self.channel_name:
+          await self.channel_layer.send(existing_channel, {
+            'type': 'relay',
+            'data': {'type': 'force_logout', 'reason': '다른 기기에서 로그인되었습니다.'},
+          })
+        self.email = new_email
+        online_users[new_email] = self.channel_name
+        await self.send(text_data=json.dumps({'type': 'registered', 'email': new_email}))
       return
 
     target = data.get('target')

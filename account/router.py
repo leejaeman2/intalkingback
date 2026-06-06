@@ -70,9 +70,15 @@ def signin(request, payload: SigninSchema):
   if authuser is None:
     raise HttpError(401, '비밀번호가 일치하지 않습니다')
 
+  authuser.token_version = (authuser.token_version or 0) + 1
+  authuser.save(update_fields=['token_version'])
+
   refresh = RefreshToken.for_user(authuser)
+  refresh['token_version'] = authuser.token_version
+  access = refresh.access_token
+  access['token_version'] = authuser.token_version
   return {
-    "access": str(refresh.access_token),
+    "access": str(access),
     "refresh": str(refresh),
     "id": authuser.id,
     "email": authuser.email,
@@ -86,7 +92,13 @@ def signin(request, payload: SigninSchema):
 def getRefresh(request, payload: TokenRefreshInputSchema):
   try:
     refresh = RefreshToken(payload.refresh)
+    user_id = refresh['user_id']
+    token_version_in_jwt = refresh.payload.get('token_version', 0)
+    user = IntalkingUser.objects.get(id=user_id)
+    if user.token_version != token_version_in_jwt:
+      raise HttpError(401, '다른 기기에서 로그인되었습니다')
     access = refresh.access_token
+    access['token_version'] = user.token_version
     return {
       "access": str(access),
       "refresh": str(refresh),
