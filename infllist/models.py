@@ -27,3 +27,19 @@ class InflList(models.Model):
       cls.objects.filter(fan=fan).order_by('created_at').first().delete()
 
     return cls.objects.create(fan=fan, infl=infl, duration=duration)
+
+  @classmethod
+  def add_call_record(cls, fan, infl, duration=0):
+    existing = cls.objects.filter(fan=fan, infl=infl).first()
+    if existing:
+      existing.duration = duration
+      existing.save(update_fields=['duration', 'last'])
+      return existing
+
+    if cls.objects.filter(fan=fan).count() >= 5:
+      cls.objects.filter(fan=fan).order_by('created_at').first().delete()
+
+    if cls.objects.filter(infl=infl).count() >= 5:
+      cls.objects.filter(infl=infl).order_by('created_at').first().delete()
+
+    return cls.objects.create(fan=fan, infl=infl, duration=duration)

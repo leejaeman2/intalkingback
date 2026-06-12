@@ -8,4 +8,5 @@ class TokenVersionJWTAuth(JWTAuth):
         jwt_version = validated_token.payload.get('token_version', None)
         if jwt_version is None or getattr(user, 'token_version', 0) != jwt_version:
             return None
+        request.user = user
         return user

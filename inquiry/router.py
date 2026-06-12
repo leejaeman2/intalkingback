@@ -8,7 +8,7 @@ router = Router()
 @router.get('list/', response=list[InquiryOutputSchema])
 def get_inquiries(request):
   Inquiry.check_all_answering()
-  inquiries = Inquiry.objects.filter(fan=request.user)
+  inquiries = Inquiry.objects.filter(fan=request.auth)
   return [
     {
       'id': i.id,
@@ -22,7 +22,7 @@ def get_inquiries(request):
 
 @router.get('{int:inquiry_id}/', response=InquiryDetailSchema)
 def get_inquiry(request, inquiry_id: int):
-  inquiry = get_object_or_404(Inquiry, id=inquiry_id, fan=request.user)
+  inquiry = get_object_or_404(Inquiry, id=inquiry_id, fan=request.auth)
   inquiry.check_completed()
   return {
     'id': inquiry.id,
@@ -43,13 +43,13 @@ def get_inquiry(request, inquiry_id: int):
 
 @router.post('create/', response={200: dict})
 def create_inquiry(request, payload: InquiryCreateSchema):
-  inquiry = Inquiry.objects.create(fan=request.user, title=payload.title)
-  InquiryReply.objects.create(inquiry=inquiry, author=request.user, is_admin=False, content=payload.content)
+  inquiry = Inquiry.objects.create(fan=request.auth, title=payload.title)
+  InquiryReply.objects.create(inquiry=inquiry, author=request.auth, is_admin=False, content=payload.content)
   return {'message': '문의가 등록되었습니다'}
 
 @router.patch('{int:inquiry_id}/', response={200: dict})
 def update_inquiry(request, inquiry_id: int, payload: InquiryUpdateSchema):
-  inquiry = get_object_or_404(Inquiry, id=inquiry_id, fan=request.user)
+  inquiry = get_object_or_404(Inquiry, id=inquiry_id, fan=request.auth)
   if payload.title is not None:
     inquiry.title = payload.title
     inquiry.save(update_fields=['title'])
@@ -62,12 +62,12 @@ def update_inquiry(request, inquiry_id: int, payload: InquiryUpdateSchema):
 
 @router.delete('{int:inquiry_id}/', response={200: dict})
 def delete_inquiry(request, inquiry_id: int):
-  inquiry = get_object_or_404(Inquiry, id=inquiry_id, fan=request.user)
+  inquiry = get_object_or_404(Inquiry, id=inquiry_id, fan=request.auth)
   inquiry.delete()
   return {'message': '문의가 삭제되었습니다'}
 
 @router.post('{int:inquiry_id}/reply/', response={200: dict})
 def reply_inquiry(request, inquiry_id: int, payload: InquiryReplyCreateSchema):
-  inquiry = get_object_or_404(Inquiry, id=inquiry_id, fan=request.user)
-  InquiryReply.objects.create(inquiry=inquiry, author=request.user, is_admin=False, content=payload.content)
+  inquiry = get_object_or_404(Inquiry, id=inquiry_id, fan=request.auth)
+  InquiryReply.objects.create(inquiry=inquiry, author=request.auth, is_admin=False, content=payload.content)
   return {'message': '답글이 등록되었습니다'}
