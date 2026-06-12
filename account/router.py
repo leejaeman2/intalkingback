@@ -3,10 +3,10 @@ from ninja.files import UploadedFile
 from ninja.errors import HttpError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
-from account.models import IntalkingUser, DeletedUser
+from account.models import IntalkingUser, DeletedUser, InflCode
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
   TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, EditFanSchema, EditInflSchema,
-  PointChargeSchema, InflWithNoticeSchema)
+  PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema)
 from notice.models import Notice
 from typing import Optional
 from django.shortcuts import get_object_or_404
@@ -29,6 +29,14 @@ def signupFan(request, payload: SignupFanSchema):
   )
   return user
 
+@router.post('verify-code/', response={200: dict}, auth=None)
+def verifyInflCode(request, payload: VerifyCodeSchema):
+  if IntalkingUser.objects.filter(code=payload.code).exists():
+    raise HttpError(400, '동일한 코드가 존재합니다')
+  if not InflCode.objects.filter(code=payload.code, is_used=False).exists():
+    raise HttpError(400, '유효하지 않은 인플루언서 코드입니다')
+  return {'valid': True}
+
 @router.post('signup/infl/', response=SignupOutputSchema, auth=None)
 def signupInfl(request,
   email: str = Form(...), password: str = Form(...),
@@ -37,14 +45,19 @@ def signupInfl(request,
   code: str = Form(...), hobby: str = Form(...),
   food: str = Form(...), mbti: str = Form(...),
   photo1: UploadedFile = File(...),
-  photo2: UploadedFile = File(None), 
+  photo2: UploadedFile = File(None),
   photo3: UploadedFile = File(None),
-  photo4: UploadedFile = File(None), 
+  photo4: UploadedFile = File(None),
   photo5: UploadedFile = File(None),
-  photo6: UploadedFile = File(None), 
+  photo6: UploadedFile = File(None),
   photo7: UploadedFile = File(None),
   photo8: UploadedFile = File(None),
 ):
+  try:
+    infl_code = InflCode.objects.get(code=code, is_used=False)
+  except InflCode.DoesNotExist:
+    raise HttpError(400, '유효하지 않은 인플루언서 코드입니다')
+
   user = IntalkingUser.objects.create(
     email=email, username=email,
     password=make_password(password),
@@ -57,6 +70,9 @@ def signupInfl(request,
     if photo:
       getattr(user, f'photo{i}').save(photo.name, photo)
   user.save()
+
+  infl_code.delete()
+
   return user
 
 @router.post('signin/', response=TokenSchema, auth=None)

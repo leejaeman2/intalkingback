@@ -1,4 +1,6 @@
-from django.db import models
+import secrets
+import string
+from django.db import models, IntegrityError, transaction
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 
@@ -58,3 +60,42 @@ class DeletedUser(models.Model):
 
   def __str__(self):
     return self.email
+
+
+class InflCode(models.Model):
+  code = models.CharField(max_length=32, unique=True, blank=True)
+  memo = models.CharField(max_length=255, blank=True)
+  is_used = models.BooleanField(default=False)
+  used_at = models.DateTimeField(null=True, blank=True)
+  created_at = models.DateTimeField(auto_now_add=True)
+
+  class Meta:
+    ordering = ['-created_at']
+
+  def save(self, *args, **kwargs):
+    if self.code:
+      super().save(*args, **kwargs)
+      return
+    for _ in range(10):
+      self.code = generate_infl_code()
+      try:
+        with transaction.atomic():
+          super().save(*args, **kwargs)
+        return
+      except IntegrityError:
+        self.code = ''
+        continue
+    raise IntegrityError('코드 생성 재시도 한계 초과')
+
+  def __str__(self):
+    return f'{self.code} ({"사용됨" if self.is_used else "미사용"})'
+
+
+def generate_infl_code():
+  while True:
+    candidate = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+    if InflCode.objects.filter(code=candidate).exists():
+      continue
+    if IntalkingUser.objects.filter(code=candidate).exists():
+      continue
+    return candidate

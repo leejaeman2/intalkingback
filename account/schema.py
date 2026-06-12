@@ -7,6 +7,9 @@ class SigninSchema(Schema):
   email: EmailStr
   password: str
 
+class VerifyCodeSchema(Schema):
+  code: str
+
 class SignupFanSchema(Schema):
   email: EmailStr
   password: str
