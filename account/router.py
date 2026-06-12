@@ -5,7 +5,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from account.models import IntalkingUser, DeletedUser, InflCode
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
-  TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, EditFanSchema, EditInflSchema,
+  TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
+  EditFanSchema, EditInflSchema,
   PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema)
 from notice.models import Notice
 from typing import Optional
@@ -127,14 +128,32 @@ def getRefresh(request, payload: TokenRefreshInputSchema):
 def isLogin(request):
   return { "islogin": True }
 
-@router.get('me/', response=IntalkingUserSchema)
+@router.get('me/', response=MeSchema)
 def getProfile(request):
   return request.user
 
-@router.patch('fan/', response=IntalkingUserSchema)
+@router.patch('fan/', response=FanMeSchema)
 def editProfile(request, payload: EditFanSchema):
-  user = get_object_or_404(IntalkingUser, email=payload.email)
-  user.nickname = payload.nickname
+  user = request.auth
+  if payload.nickname is not None: user.nickname = payload.nickname
+  if payload.phone is not None: user.phone = payload.phone
+  if payload.hobby is not None: user.hobby = payload.hobby
+  if payload.food is not None: user.food = payload.food
+  if payload.mbti is not None: user.mbti = payload.mbti
+  user.save()
+  return user
+
+@router.patch('infl/', response=InflMeSchema)
+def editInflProfile(request, payload: EditInflSchema):
+  user = request.auth
+  if payload.nickname is not None: user.nickname = payload.nickname
+  if payload.phone is not None: user.phone = payload.phone
+  if payload.bank is not None: user.bank = payload.bank
+  if payload.account is not None: user.account = payload.account
+  if payload.hobby is not None: user.hobby = payload.hobby
+  if payload.food is not None: user.food = payload.food
+  if payload.mbti is not None: user.mbti = payload.mbti
+  if payload.info is not None: user.info = payload.info
   user.save()
   return user
 

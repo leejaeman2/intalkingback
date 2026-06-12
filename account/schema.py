@@ -1,6 +1,7 @@
+from typing import Literal, Union, Annotated
 from ninja import Schema
 from ninja.orm import create_schema
-from pydantic import EmailStr
+from pydantic import EmailStr, Field
 from account.models import IntalkingUser
 
 class SigninSchema(Schema):
@@ -30,13 +31,44 @@ class SignupInflSchema(Schema):
   mbti: str
 
 SignupOutputSchema = create_schema(IntalkingUser, fields=['id', 'email', 'nickname', 'fan'])
-EditFanSchema = create_schema(IntalkingUser, fields=['email'])
-EditInflSchema = create_schema(IntalkingUser, fields=['email'])
+class EditFanSchema(Schema):
+  nickname: str | None = None
+  phone: str | None = None
+  hobby: str | None = None
+  food: str | None = None
+  mbti: str | None = None
+class EditInflSchema(Schema):
+  nickname: str | None = None
+  phone: str | None = None
+  bank: str | None = None
+  account: str | None = None
+  hobby: str | None = None
+  food: str | None = None
+  mbti: str | None = None
+  info: str | None = None
 InflSchema = create_schema(IntalkingUser, exclude=['password', 'is_staff', 'is_superuser',
   'groups', 'user_permissions', 'last_login', 'account', 'bank', 'charnum', 'code', 'date_joined',
   'id', 'is_active', 'point', 'phone', 'last_name', 'first_name'])
-IntalkingUserSchema = create_schema(IntalkingUser, exclude=['password', 'is_staff', 'is_superuser',
-  'groups', 'user_permissions', 'last_login'])
+_AUTH_EXCLUDE = ['password', 'is_staff', 'is_superuser',
+  'groups', 'user_permissions', 'last_login']
+_PHOTO_FIELDS = ['photo1', 'photo2', 'photo3', 'photo4',
+  'photo5', 'photo6', 'photo7', 'photo8']
+
+# 팬: photo 미사용 → 응답에서 제외
+FanMeSchema = create_schema(IntalkingUser, name='FanMeSchema',
+  exclude=_AUTH_EXCLUDE + _PHOTO_FIELDS,
+  custom_fields=[('fan', Literal['FAN'], 'FAN')])
+
+# 인플: photo1 필수
+InflMeSchema = create_schema(IntalkingUser, name='InflMeSchema',
+  exclude=_AUTH_EXCLUDE,
+  custom_fields=[('fan', Literal['INFL'], 'INFL')])
+
+# fan 값으로 분기 (discriminated union)
+MeSchema = Annotated[Union[FanMeSchema, InflMeSchema], Field(discriminator='fan')]
+
+# islogin/ 등 기존 호환용
+IntalkingUserSchema = create_schema(IntalkingUser, exclude=_AUTH_EXCLUDE)
 
 class TokenSchema(Schema):
   access: str
