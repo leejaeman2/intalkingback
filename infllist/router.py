@@ -1,13 +1,102 @@
-from ninja import Router
+import os
+import shutil
+import subprocess
+import tempfile
+from ninja import Router, File, Form
+from ninja.files import UploadedFile
 from ninja.errors import HttpError
 from django.shortcuts import get_object_or_404
+from django.core.files import File as DjangoFile
 from account.models import IntalkingUser
-from infllist.models import InflList
+from infllist.models import InflList, CallRecording
 from infllist.schema import (
   AddInflSchema, InflListOutputSchema, CallEndSchema, FanListOutputSchema,
 )
 
 router = Router()
+
+
+def _field_to_tempfile(field, suffix):
+  """스토리지(로컬/S3) 무관하게 FileField 내용을 임시 파일로 복사."""
+  fd, path = tempfile.mkstemp(suffix=suffix)
+  with os.fdopen(fd, 'wb') as out:
+    field.open('rb')
+    for chunk in field.chunks():
+      out.write(chunk)
+    field.close()
+  return path
+
+
+def _try_merge(rec):
+  """양쪽 트랙이 모두 도착했고 ffmpeg가 있으면 병합 → merged 저장 후 개별 트랙 삭제."""
+  if rec.merged:
+    return True
+  if not (rec.fan_track and rec.infl_track):
+    return False
+  ffmpeg = shutil.which('ffmpeg')
+  if not ffmpeg:
+    # ffmpeg 미설치 시 개별 트랙은 보존하고 병합만 보류
+    return False
+
+  fan_tmp = infl_tmp = out_path = None
+  try:
+    fan_tmp = _field_to_tempfile(rec.fan_track, '.wav')
+    infl_tmp = _field_to_tempfile(rec.infl_track, '.wav')
+    out_fd, out_path = tempfile.mkstemp(suffix='.m4a')
+    os.close(out_fd)
+    subprocess.run([
+      ffmpeg, '-y',
+      '-i', fan_tmp, '-i', infl_tmp,
+      '-filter_complex', 'amix=inputs=2:duration=longest:normalize=0',
+      '-c:a', 'aac', out_path,
+    ], check=True, capture_output=True, timeout=180)
+    with open(out_path, 'rb') as f:
+      rec.merged.save(f'merged_{rec.room}.m4a', DjangoFile(f), save=False)
+    rec.save()
+    # 병합 성공 시 개별 트랙 제거 (서버 저장공간 최소화)
+    rec.fan_track.delete(save=False)
+    rec.infl_track.delete(save=False)
+    rec.save()
+    return True
+  except Exception:
+    return False
+  finally:
+    for p in (fan_tmp, infl_tmp, out_path):
+      if p and os.path.exists(p):
+        os.remove(p)
+
+
+@router.post('recording/', response={200: dict})
+def upload_recording(request,
+  track: UploadedFile = File(...),
+  room: str = Form(...),
+  role: str = Form(...),
+  peer_email: str = Form(...),
+  duration: int = Form(0),
+):
+  me = request.auth
+  peer = IntalkingUser.objects.filter(email=peer_email).first()
+  if role == 'fan':
+    fan, infl = me, peer
+  else:
+    fan, infl = peer, me
+
+  rec, _ = CallRecording.objects.get_or_create(
+    room=room, defaults={'fan': fan, 'infl': infl})
+  if rec.fan_id is None and fan:
+    rec.fan = fan
+  if rec.infl_id is None and infl:
+    rec.infl = infl
+
+  if role == 'fan':
+    rec.fan_track.save(f'fan_{track.name}', track, save=False)
+  else:
+    rec.infl_track.save(f'infl_{track.name}', track, save=False)
+  rec.duration = max(rec.duration, duration or 0)
+  rec.save()
+
+  merged = _try_merge(rec)
+  return {'message': '녹음이 업로드되었습니다', 'room': room, 'merged': bool(merged)}
 
 @router.post('add/', response={200: dict})
 def add_infl(request, payload: AddInflSchema):

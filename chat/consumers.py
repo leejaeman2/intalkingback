@@ -60,6 +60,7 @@ class CallConsumer(AsyncWebsocketConsumer):
           'caller': self.email,
           'nickname': data.get('nickname'),
           'photo1': data.get('photo1'),
+          'room': data.get('room'),
         },
       })
       return
