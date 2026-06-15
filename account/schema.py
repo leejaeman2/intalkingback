@@ -70,6 +70,12 @@ MeSchema = Annotated[Union[FanMeSchema, InflMeSchema], Field(discriminator='fan'
 # islogin/ 등 기존 호환용
 IntalkingUserSchema = create_schema(IntalkingUser, exclude=_AUTH_EXCLUDE)
 
+class LoginErrorSchema(Schema):
+  code: str               # NO_USER | WRONG_PASSWORD | LOCKED
+  message: str
+  fail_count: int = 0
+  locked: bool = False
+
 class TokenSchema(Schema):
   access: str
   refresh: str

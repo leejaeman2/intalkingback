@@ -5,7 +5,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from account.models import IntalkingUser, DeletedUser, InflCode
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
-  TokenSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
+  TokenSchema, LoginErrorSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
   EditFanSchema, EditInflSchema,
   PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema)
 from notice.models import Notice
@@ -76,25 +76,40 @@ def signupInfl(request,
 
   return user
 
-@router.post('signin/', response=TokenSchema, auth=None)
+MAX_LOGIN_FAIL = 5
+
+@router.post('signin/', response={200: TokenSchema, 401: LoginErrorSchema, 423: LoginErrorSchema}, auth=None)
 def signin(request, payload: SigninSchema):
   try:
-    IntalkingUser.objects.get(email=payload.email)
+    user = IntalkingUser.objects.get(email=payload.email)
   except IntalkingUser.DoesNotExist:
-    raise HttpError(401, '이메일이 존재하지 않습니다')
-  
+    return 401, {'code': 'NO_USER', 'message': '회원 정보가 없습니다'}
+
+  # 이미 5회 이상 실패로 잠긴 계정
+  if user.login_fail_count >= MAX_LOGIN_FAIL:
+    return 423, {'code': 'LOCKED', 'fail_count': user.login_fail_count, 'locked': True,
+      'message': '비밀번호가 5회 이상 틀렸습니다. 비밀번호를 재설정 해주세요.'}
+
   authuser = authenticate(email=payload.email, password=payload.password)
   if authuser is None:
-    raise HttpError(401, '비밀번호가 일치하지 않습니다')
+    user.login_fail_count += 1
+    user.save(update_fields=['login_fail_count'])
+    if user.login_fail_count >= MAX_LOGIN_FAIL:
+      return 423, {'code': 'LOCKED', 'fail_count': user.login_fail_count, 'locked': True,
+        'message': '비밀번호가 5회 이상 틀렸습니다. 비밀번호를 재설정 해주세요.'}
+    return 401, {'code': 'WRONG_PASSWORD', 'fail_count': user.login_fail_count, 'locked': False,
+      'message': '비밀번호가 틀립니다. 다시 입력해주세요.'}
 
+  # 로그인 성공 → 실패 카운트 초기화
   authuser.token_version = (authuser.token_version or 0) + 1
-  authuser.save(update_fields=['token_version'])
+  authuser.login_fail_count = 0
+  authuser.save(update_fields=['token_version', 'login_fail_count'])
 
   refresh = RefreshToken.for_user(authuser)
   refresh['token_version'] = authuser.token_version
   access = refresh.access_token
   access['token_version'] = authuser.token_version
-  return {
+  return 200, {
     "access": str(access),
     "refresh": str(refresh),
     "id": authuser.id,

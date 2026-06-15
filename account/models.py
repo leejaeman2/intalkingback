@@ -34,6 +34,7 @@ class IntalkingUser(AbstractUser):
   point = models.IntegerField(default=0)
   callmode = models.BooleanField(default=True)
   token_version = models.IntegerField(default=0)
+  login_fail_count = models.IntegerField(default=0)
   photo1 = models.ImageField(upload_to='profile/')
   photo2 = models.ImageField(upload_to='profile/', null=True, blank=True)
   photo3 = models.ImageField(upload_to='profile/', null=True, blank=True)
