@@ -35,6 +35,7 @@ class IntalkingUser(AbstractUser):
   callmode = models.BooleanField(default=True)
   token_version = models.IntegerField(default=0)
   login_fail_count = models.IntegerField(default=0)
+  is_approved = models.BooleanField(default=True)   # 코드 없는 인플 가입신청은 False(관리자 승인 대기)
   photo1 = models.ImageField(upload_to='profile/')
   photo2 = models.ImageField(upload_to='profile/', null=True, blank=True)
   photo3 = models.ImageField(upload_to='profile/', null=True, blank=True)

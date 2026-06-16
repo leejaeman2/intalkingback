@@ -1,12 +1,22 @@
+import re
 from typing import Literal, Union, Annotated
 from ninja import Schema
 from ninja.orm import create_schema
-from pydantic import EmailStr, Field
+from pydantic import EmailStr, Field, field_validator
 from account.models import IntalkingUser
+
+# 영문 + 숫자 조합, 10자리 이상 (특수기호 허용하되 필수 아님)
+PW_RULE = re.compile(r'^(?=.*[A-Za-z])(?=.*\d).{10,}$')
+
+def validate_password(value):
+  if not PW_RULE.match(value or ''):
+    raise ValueError('비밀번호는 영문과 숫자를 조합해 10자리 이상이어야 합니다.')
+  return value
 
 class SigninSchema(Schema):
   email: EmailStr
   password: str
+  force: bool = False   # 다른 기기 로그인 경고 후 강제 로그인 여부
 
 class VerifyCodeSchema(Schema):
   code: str
@@ -17,6 +27,8 @@ class SignupFanSchema(Schema):
   nickname: str
   phone: str
   character: int
+
+  _check_password = field_validator('password')(validate_password)
 
 class SignupInflSchema(Schema):
   email: EmailStr
@@ -29,6 +41,8 @@ class SignupInflSchema(Schema):
   hobby: str
   food: str
   mbti: str
+
+  _check_password = field_validator('password')(validate_password)
 
 SignupOutputSchema = create_schema(IntalkingUser, fields=['id', 'email', 'nickname', 'fan'])
 class EditFanSchema(Schema):

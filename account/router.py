@@ -9,6 +9,7 @@ from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchem
   EditFanSchema, EditInflSchema,
   PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema)
 from notice.models import Notice
+from chat.consumers import online_users
 from typing import Optional
 from django.shortcuts import get_object_or_404
 from ninja_jwt.tokens import RefreshToken
@@ -54,10 +55,13 @@ def signupInfl(request,
   photo7: UploadedFile = File(None),
   photo8: UploadedFile = File(None),
 ):
-  try:
-    infl_code = InflCode.objects.get(code=code, is_used=False)
-  except InflCode.DoesNotExist:
-    raise HttpError(400, '유효하지 않은 인플루언서 코드입니다')
+  code = (code or '').strip()
+  infl_code = None
+  if code:
+    try:
+      infl_code = InflCode.objects.get(code=code, is_used=False)
+    except InflCode.DoesNotExist:
+      raise HttpError(400, '유효하지 않은 인플루언서 코드입니다')
 
   user = IntalkingUser.objects.create(
     email=email, username=email,
@@ -66,19 +70,21 @@ def signupInfl(request,
     bank=bank, account=account, code=code or None,
     hobby=hobby, food=food, mbti=mbti,
     fan='INFL',
+    is_approved=bool(code),   # 코드 있으면 즉시 승인, 없으면 관리자 승인 대기
   )
   for i, photo in enumerate([photo1, photo2, photo3, photo4, photo5, photo6, photo7, photo8], 1):
     if photo:
       getattr(user, f'photo{i}').save(photo.name, photo)
   user.save()
 
-  infl_code.delete()
+  if infl_code:
+    infl_code.delete()
 
   return user
 
 MAX_LOGIN_FAIL = 5
 
-@router.post('signin/', response={200: TokenSchema, 401: LoginErrorSchema, 423: LoginErrorSchema}, auth=None)
+@router.post('signin/', response={200: TokenSchema, 401: LoginErrorSchema, 403: LoginErrorSchema, 409: LoginErrorSchema, 423: LoginErrorSchema}, auth=None)
 def signin(request, payload: SigninSchema):
   try:
     user = IntalkingUser.objects.get(email=payload.email)
@@ -100,10 +106,24 @@ def signin(request, payload: SigninSchema):
     return 401, {'code': 'WRONG_PASSWORD', 'fail_count': user.login_fail_count, 'locked': False,
       'message': '비밀번호가 틀립니다. 다시 입력해주세요.'}
 
-  # 로그인 성공 → 실패 카운트 초기화
+  # 비밀번호 정상 → 실패 카운트 초기화
+  if authuser.login_fail_count:
+    authuser.login_fail_count = 0
+    authuser.save(update_fields=['login_fail_count'])
+
+  # 관리자 승인 대기 계정(코드 없이 가입 신청)은 로그인 차단
+  if not authuser.is_approved:
+    return 403, {'code': 'NOT_APPROVED', 'locked': False,
+      'message': '가입 신청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다.'}
+
+  # 다른 기기에서 접속 중이면, force 아닌 경우 확인 요청
+  if not payload.force and online_users.get(payload.email):
+    return 409, {'code': 'ALREADY_LOGGED_IN', 'locked': False,
+      'message': '다른 기기에 로그인되어 있습니다. 그래도 로그인하시겠습니까?'}
+
+  # 토큰 발급 (token_version 증가 → 기존 기기 토큰 무효화, WS register 시 force_logout)
   authuser.token_version = (authuser.token_version or 0) + 1
-  authuser.login_fail_count = 0
-  authuser.save(update_fields=['token_version', 'login_fail_count'])
+  authuser.save(update_fields=['token_version'])
 
   refresh = RefreshToken.for_user(authuser)
   refresh['token_version'] = authuser.token_version
