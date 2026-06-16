@@ -21,7 +21,7 @@ class IntalkingUser(AbstractUser):
   username = models.CharField(max_length=255)
   email = models.EmailField(max_length=255, unique=True)
   nickname = models.CharField(max_length=255, unique=True, null=True, blank=True)
-  phone = models.CharField(max_length=20, unique=True)
+  phone = models.CharField(max_length=20, unique=True, null=True, blank=True, default=None)
   fan = models.CharField(max_length=4, choices=FAN_CHOICES)
   bank = models.CharField(max_length=255, null=True, blank=True)
   account = models.CharField(max_length=255, null=True, blank=True)
