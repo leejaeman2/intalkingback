@@ -39,6 +39,7 @@ class CallConsumer(AsyncWebsocketConsumer):
           })
         self.email = new_email
         online_users[new_email] = self.channel_name
+        print(f'[WS] register {new_email!r} | online={list(online_users)}')
         await self.send(text_data=json.dumps({'type': 'registered', 'email': new_email}))
       return
 
@@ -46,6 +47,8 @@ class CallConsumer(AsyncWebsocketConsumer):
     target_channel = online_users.get(target)
 
     if msg_type == 'call_request':
+      print(f'[WS] call_request from={self.email!r} target={target!r} '
+            f'found={bool(target_channel)} | online={list(online_users)}')
       if not target_channel:
         await self.send(text_data=json.dumps({'type': 'call_unavailable', 'target': target}))
         return
