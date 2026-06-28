@@ -238,6 +238,17 @@ def chargePoint(request, payload: PointChargeSchema):
   user.save(update_fields=['point'])
   return {'message': '포인트가 적립되었습니다', 'point': user.point}
 
+CALL_POINT = 16000   # 통화 연결 시 차감 포인트 (20분 단위)
+
+@router.post('call-charge/', response={200: dict, 400: dict})
+def callCharge(request):
+  user = request.user
+  if user.point < CALL_POINT:
+    return 400, {'message': '포인트가 부족합니다', 'point': user.point}
+  user.point -= CALL_POINT
+  user.save(update_fields=['point'])
+  return {'message': '통화 포인트가 차감되었습니다', 'point': user.point}
+
 @router.get('infl/', response=list[InflWithNoticeSchema])
 def getInflUsers(request):
   users = IntalkingUser.objects.filter(fan='INFL')
