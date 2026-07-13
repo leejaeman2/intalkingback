@@ -33,7 +33,7 @@ def checkUserid(request, payload: CheckUseridSchema):
 @router.post('signup/fan/', response=SignupOutputSchema, auth=None)
 def signupFan(request, payload: SignupFanSchema):
   user = IntalkingUser.objects.create(
-    email=payload.email,
+    email=f'{payload.userid}@intalking.app',   # 이메일 미수집 → 아이디 기반 내부 식별자 자동 생성
     username=payload.userid,
     password=make_password(payload.password),
     nickname=payload.nickname,
@@ -54,7 +54,7 @@ def verifyInflCode(request, payload: VerifyCodeSchema):
 @router.post('signup/infl/', response=SignupOutputSchema, auth=None)
 def signupInfl(request,
   userid: str = Form(...),
-  email: str = Form(...), password: str = Form(...),
+  password: str = Form(...),
   nickname: str = Form(...), phone: str = Form(...),
   bank: str = Form(...), account: str = Form(...),
   code: str = Form(...), hobby: str = Form(...),
@@ -77,7 +77,7 @@ def signupInfl(request,
       raise HttpError(400, '유효하지 않은 인플루언서 코드입니다')
 
   user = IntalkingUser.objects.create(
-    email=email, username=userid,
+    email=f'{userid}@intalking.app', username=userid,
     password=make_password(password),
     nickname=nickname, phone=phone,
     bank=bank, account=account, code=code or None,

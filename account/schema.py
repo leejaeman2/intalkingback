@@ -29,7 +29,6 @@ class CheckUseridSchema(Schema):
 
 class SignupFanSchema(Schema):
   userid: str
-  email: EmailStr
   password: str
   nickname: str
   phone: str
