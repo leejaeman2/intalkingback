@@ -7,7 +7,7 @@ from account.models import IntalkingUser, DeletedUser, InflCode
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
   TokenSchema, LoginErrorSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
   EditFanSchema, EditInflSchema,
-  PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema)
+  PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema)
 from notice.models import Notice
 from chat.consumers import online_users
 from typing import Optional
@@ -18,11 +18,23 @@ from ninja_jwt.schema import (TokenObtainPairInputSchema,
 
 router = Router()
 
+@router.post('check-email/', response={200: dict}, auth=None)
+def checkEmail(request, payload: CheckEmailSchema):
+  if IntalkingUser.objects.filter(email=payload.email).exists():
+    raise HttpError(400, '동일한 이메일이 존재합니다')
+  return {'valid': True}
+
+@router.post('check-userid/', response={200: dict}, auth=None)
+def checkUserid(request, payload: CheckUseridSchema):
+  if IntalkingUser.objects.filter(username=payload.userid).exists():
+    raise HttpError(400, '동일한 아이디가 존재합니다')
+  return {'valid': True}
+
 @router.post('signup/fan/', response=SignupOutputSchema, auth=None)
 def signupFan(request, payload: SignupFanSchema):
   user = IntalkingUser.objects.create(
     email=payload.email,
-    username=payload.email,
+    username=payload.userid,
     password=make_password(payload.password),
     nickname=payload.nickname,
     phone=payload.phone,
@@ -41,6 +53,7 @@ def verifyInflCode(request, payload: VerifyCodeSchema):
 
 @router.post('signup/infl/', response=SignupOutputSchema, auth=None)
 def signupInfl(request,
+  userid: str = Form(...),
   email: str = Form(...), password: str = Form(...),
   nickname: str = Form(...), phone: str = Form(...),
   bank: str = Form(...), account: str = Form(...),
@@ -64,7 +77,7 @@ def signupInfl(request,
       raise HttpError(400, '유효하지 않은 인플루언서 코드입니다')
 
   user = IntalkingUser.objects.create(
-    email=email, username=email,
+    email=email, username=userid,
     password=make_password(password),
     nickname=nickname, phone=phone,
     bank=bank, account=account, code=code or None,
@@ -87,7 +100,7 @@ MAX_LOGIN_FAIL = 5
 @router.post('signin/', response={200: TokenSchema, 401: LoginErrorSchema, 403: LoginErrorSchema, 409: LoginErrorSchema, 423: LoginErrorSchema}, auth=None)
 def signin(request, payload: SigninSchema):
   try:
-    user = IntalkingUser.objects.get(email=payload.email)
+    user = IntalkingUser.objects.get(username=payload.userid)
   except IntalkingUser.DoesNotExist:
     return 401, {'code': 'NO_USER', 'message': '회원 정보가 없습니다'}
 
@@ -96,7 +109,7 @@ def signin(request, payload: SigninSchema):
     return 423, {'code': 'LOCKED', 'fail_count': user.login_fail_count, 'locked': True,
       'message': '비밀번호가 5회 이상 틀렸습니다. 비밀번호를 재설정 해주세요.'}
 
-  authuser = authenticate(email=payload.email, password=payload.password)
+  authuser = authenticate(email=user.email, password=payload.password)
   if authuser is None:
     user.login_fail_count += 1
     user.save(update_fields=['login_fail_count'])
@@ -117,7 +130,7 @@ def signin(request, payload: SigninSchema):
       'message': '가입 신청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다.'}
 
   # 다른 기기에서 접속 중이면, force 아닌 경우 확인 요청
-  if not payload.force and online_users.get(payload.email):
+  if not payload.force and online_users.get(authuser.email):
     return 409, {'code': 'ALREADY_LOGGED_IN', 'locked': False,
       'message': '다른 기기에 로그인되어 있습니다. 그래도 로그인하시겠습니까?'}
 

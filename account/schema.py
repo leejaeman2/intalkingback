@@ -14,14 +14,21 @@ def validate_password(value):
   return value
 
 class SigninSchema(Schema):
-  email: EmailStr
+  userid: str           # 로그인 아이디 (username)
   password: str
   force: bool = False   # 다른 기기 로그인 경고 후 강제 로그인 여부
 
 class VerifyCodeSchema(Schema):
   code: str
 
+class CheckEmailSchema(Schema):
+  email: EmailStr
+
+class CheckUseridSchema(Schema):
+  userid: str
+
 class SignupFanSchema(Schema):
+  userid: str
   email: EmailStr
   password: str
   nickname: str
