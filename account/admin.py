@@ -6,10 +6,10 @@ from .models import IntalkingUser, InflCode
 
 @admin.register(IntalkingUser)
 class IntalkingUserAdmin(UserAdmin):
-    list_display = ('email', 'nickname', 'phone', 'fan', 'is_approved', 'charnum', 'mbti', 'hobby', 'point', 'callmode', 'is_active')
+    list_display = ('username', 'nickname', 'phone', 'fan', 'is_approved', 'charnum', 'mbti', 'hobby', 'point', 'callmode', 'is_active')
     list_editable = ('is_approved',)
     list_filter = ('fan', 'is_approved', 'mbti', 'is_active')
-    search_fields = ('email', 'nickname', 'phone')
+    search_fields = ('username', 'nickname', 'phone')
     ordering = ('-date_joined',)
     actions = ('approve_users',)
 
