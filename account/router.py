@@ -109,7 +109,7 @@ def signin(request, payload: SigninSchema):
     return 423, {'code': 'LOCKED', 'fail_count': user.login_fail_count, 'locked': True,
       'message': '비밀번호가 5회 이상 틀렸습니다. 비밀번호를 재설정 해주세요.'}
 
-  authuser = authenticate(email=user.email, password=payload.password)
+  authuser = authenticate(username=user.username, password=payload.password)
   if authuser is None:
     user.login_fail_count += 1
     user.save(update_fields=['login_fail_count'])

@@ -45,8 +45,8 @@ class IntalkingUser(AbstractUser):
   photo7 = models.ImageField(upload_to='profile/', null=True, blank=True)
   photo8 = models.ImageField(upload_to='profile/', null=True, blank=True)
 
-  USERNAME_FIELD = 'email'
-  REQUIRED_FIELDS = ['username']
+  USERNAME_FIELD = 'username'   # 로그인 아이디 (admin 로그인도 이 필드 사용)
+  REQUIRED_FIELDS = ['email']
 
   def __str__(self):
     return f'{self.email} ({self.nickname})' if self.nickname else self.email
