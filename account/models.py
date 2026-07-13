@@ -19,7 +19,7 @@ class IntalkingUser(AbstractUser):
   ]
 
   username = models.CharField(max_length=255, unique=True)   # 로그인 아이디
-  email = models.EmailField(max_length=255, unique=True)
+  email = models.EmailField(max_length=255, unique=True, null=True, blank=True)
   nickname = models.CharField(max_length=255, unique=True, null=True, blank=True)
   phone = models.CharField(max_length=20, unique=True, null=True, blank=True, default=None)
   fan = models.CharField(max_length=4, choices=FAN_CHOICES)
@@ -46,7 +46,7 @@ class IntalkingUser(AbstractUser):
   photo8 = models.ImageField(upload_to='profile/', null=True, blank=True)
 
   USERNAME_FIELD = 'username'   # 로그인 아이디 (admin 로그인도 이 필드 사용)
-  REQUIRED_FIELDS = ['email']
+  REQUIRED_FIELDS = []          # createsuperuser는 아이디+비밀번호만 입력받음
 
   def __str__(self):
     return f'{self.email} ({self.nickname})' if self.nickname else self.email
