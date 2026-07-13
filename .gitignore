@@ -178,3 +178,8 @@ cython_debug/
 .claude/
 
 # End of https://www.toptal.com/developers/gitignore/api/django
+
+staticfiles/
+
+# .env.* 패턴에서 템플릿은 예외 (실제 값 없음, 팀 공유용)
+!.env.example
