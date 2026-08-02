@@ -27,6 +27,12 @@ class CheckEmailSchema(Schema):
 class CheckUseridSchema(Schema):
   userid: str
 
+class ResetPasswordSchema(Schema):
+  userid: str
+  password: str
+
+  _check_password = field_validator('password')(validate_password)
+
 class SignupFanSchema(Schema):
   userid: str
   password: str

@@ -7,7 +7,8 @@ from account.models import IntalkingUser, DeletedUser, InflCode
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
   TokenSchema, LoginErrorSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
   EditFanSchema, EditInflSchema,
-  PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema)
+  PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema,
+  ResetPasswordSchema)
 from notice.models import Notice
 from chat.consumers import online_users
 from typing import Optional
@@ -29,6 +30,18 @@ def checkUserid(request, payload: CheckUseridSchema):
   if IntalkingUser.objects.filter(username=payload.userid).exists():
     raise HttpError(400, '동일한 아이디가 존재합니다')
   return {'valid': True}
+
+@router.post('reset-password/', response={200: dict, 404: dict}, auth=None)
+def resetPassword(request, payload: ResetPasswordSchema):
+  try:
+    user = IntalkingUser.objects.get(username=payload.userid)
+  except IntalkingUser.DoesNotExist:
+    return 404, {'message': '아이디를 찾을 수 없습니다'}
+  user.password = make_password(payload.password)
+  user.login_fail_count = 0                                  # 잠금 해제
+  user.token_version = (user.token_version or 0) + 1         # 기존 로그인 세션 무효화
+  user.save(update_fields=['password', 'login_fail_count', 'token_version'])
+  return {'message': '비밀번호가 변경되었습니다'}
 
 @router.post('signup/fan/', response=SignupOutputSchema, auth=None)
 def signupFan(request, payload: SignupFanSchema):
