@@ -3,6 +3,8 @@ from ninja.files import UploadedFile
 from ninja.errors import HttpError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from account.models import IntalkingUser, DeletedUser, InflCode
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
   TokenSchema, LoginErrorSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
@@ -21,7 +23,7 @@ router = Router()
 
 @router.post('check-email/', response={200: dict}, auth=None)
 def checkEmail(request, payload: CheckEmailSchema):
-  if IntalkingUser.objects.filter(email=payload.email).exists():
+  if IntalkingUser.objects.filter(email__iexact=payload.email).exists():
     raise HttpError(400, '동일한 이메일이 존재합니다')
   return {'valid': True}
 
@@ -43,10 +45,21 @@ def resetPassword(request, payload: ResetPasswordSchema):
   user.save(update_fields=['password', 'login_fail_count', 'token_version'])
   return {'message': '비밀번호가 변경되었습니다'}
 
+def check_signup_email(email):
+  email = (email or '').strip().lower()
+  try:
+    validate_email(email)
+  except ValidationError:
+    raise HttpError(400, '올바른 이메일 형식이 아닙니다')
+  if IntalkingUser.objects.filter(email__iexact=email).exists():
+    raise HttpError(400, '동일한 이메일이 존재합니다')
+  return email
+
 @router.post('signup/fan/', response=SignupOutputSchema, auth=None)
 def signupFan(request, payload: SignupFanSchema):
+  email = check_signup_email(payload.email)
   user = IntalkingUser.objects.create(
-    email=f'{payload.userid}@intalking.app',   # 이메일 미수집 → 아이디 기반 내부 식별자 자동 생성
+    email=email,
     username=payload.userid,
     password=make_password(payload.password),
     nickname=payload.nickname,
@@ -67,6 +80,7 @@ def verifyInflCode(request, payload: VerifyCodeSchema):
 @router.post('signup/infl/', response=SignupOutputSchema, auth=None)
 def signupInfl(request,
   userid: str = Form(...),
+  email: str = Form(...),
   password: str = Form(...),
   nickname: str = Form(...), phone: str = Form(...),
   bank: str = Form(...), account: str = Form(...),
@@ -81,6 +95,7 @@ def signupInfl(request,
   photo7: UploadedFile = File(None),
   photo8: UploadedFile = File(None),
 ):
+  email = check_signup_email(email)
   code = (code or '').strip()
   infl_code = None
   if code:
@@ -90,7 +105,7 @@ def signupInfl(request,
       raise HttpError(400, '유효하지 않은 인플루언서 코드입니다')
 
   user = IntalkingUser.objects.create(
-    email=f'{userid}@intalking.app', username=userid,
+    email=email, username=userid,
     password=make_password(password),
     nickname=nickname, phone=phone,
     bank=bank, account=account, code=code or None,

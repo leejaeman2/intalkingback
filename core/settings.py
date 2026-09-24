@@ -12,17 +12,14 @@ if env_file.exists():
 else:
     load_dotenv(BASE_DIR / '.env')
 
-
 def env_bool(key, default):
     return os.getenv(key, str(default)).lower() in ('1', 'true', 'yes', 'on')
-
 
 def env_list(key, default):
     raw = os.getenv(key)
     if raw is None:
         return default
     return [item.strip() for item in raw.split(',') if item.strip()]
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
