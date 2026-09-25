@@ -10,7 +10,7 @@ from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchem
   TokenSchema, LoginErrorSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
   EditFanSchema, EditInflSchema,
   PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema,
-  ResetPasswordSchema)
+  ResetPasswordSchema, PushTokenSchema)
 from notice.models import Notice
 from chat.consumers import online_users
 from typing import Optional
@@ -239,6 +239,21 @@ def toggleCallmode(request):
   user.callmode = not user.callmode
   user.save(update_fields=['callmode'])
   return {'callmode': user.callmode}
+
+@router.put('push-token/', response={200: dict})
+def registerPushToken(request, payload: PushTokenSchema):
+  # 한 기기 토큰은 마지막 로그인 계정에만 연결 (다른 계정의 같은 토큰 제거)
+  IntalkingUser.objects.filter(push_token=payload.token).exclude(id=request.user.id).update(
+    push_token=None, push_platform=None)
+  IntalkingUser.objects.filter(id=request.user.id).update(
+    push_token=payload.token, push_platform=payload.platform)
+  return {'message': 'ok'}
+
+@router.delete('push-token/', response={200: dict})
+def deletePushToken(request, token: str):
+  # 로그아웃한 기기의 토큰일 때만 삭제 (다른 기기 로그인으로 밀려난 경우 새 기기 토큰 유지)
+  IntalkingUser.objects.filter(id=request.user.id, push_token=token).update(push_token=None, push_platform=None)
+  return {'message': 'ok'}
 
 @router.patch('photos/', response={200: dict})
 def updatePhotos(request,

@@ -36,6 +36,8 @@ class IntalkingUser(AbstractUser):
   token_version = models.IntegerField(default=0)
   login_fail_count = models.IntegerField(default=0)
   is_approved = models.BooleanField(default=True)   # 코드 없는 인플 가입신청은 False(관리자 승인 대기)
+  push_platform = models.CharField(max_length=10, null=True, blank=True)   # ios | android
+  push_token = models.CharField(max_length=255, null=True, blank=True)     # iOS: PushKit VoIP 토큰, Android: FCM 토큰
   photo1 = models.ImageField(upload_to='profile/')
   photo2 = models.ImageField(upload_to='profile/', null=True, blank=True)
   photo3 = models.ImageField(upload_to='profile/', null=True, blank=True)

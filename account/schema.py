@@ -58,6 +58,10 @@ class SignupInflSchema(Schema):
   _check_password = field_validator('password')(validate_password)
 
 SignupOutputSchema = create_schema(IntalkingUser, fields=['id', 'email', 'nickname', 'fan'])
+class PushTokenSchema(Schema):
+  platform: Literal['ios', 'android']
+  token: str
+
 class EditFanSchema(Schema):
   nickname: str | None = None
   phone: str | None = None
@@ -75,9 +79,9 @@ class EditInflSchema(Schema):
   info: str | None = None
 InflSchema = create_schema(IntalkingUser, exclude=['password', 'is_staff', 'is_superuser',
   'groups', 'user_permissions', 'last_login', 'account', 'bank', 'charnum', 'code', 'date_joined',
-  'id', 'is_active', 'point', 'phone', 'last_name', 'first_name'])
+  'id', 'is_active', 'point', 'phone', 'last_name', 'first_name', 'push_platform', 'push_token'])
 _AUTH_EXCLUDE = ['password', 'is_staff', 'is_superuser',
-  'groups', 'user_permissions', 'last_login']
+  'groups', 'user_permissions', 'last_login', 'push_platform', 'push_token']
 _PHOTO_FIELDS = ['photo1', 'photo2', 'photo3', 'photo4',
   'photo5', 'photo6', 'photo7', 'photo8']
 

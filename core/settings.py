@@ -201,3 +201,13 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': False,
 }
+
+# 착신 푸시 (앱이 꺼져 있을 때 전화 수신)
+# iOS: APNs VoIP 푸시 (Apple Developer > Keys 에서 발급한 .p8 인증키)
+APNS_KEY_PATH = os.getenv('APNS_KEY_PATH', '')
+APNS_KEY_ID = os.getenv('APNS_KEY_ID', '')
+APNS_TEAM_ID = os.getenv('APNS_TEAM_ID', '')
+APNS_BUNDLE_ID = os.getenv('APNS_BUNDLE_ID', '')
+APNS_USE_SANDBOX = env_bool('APNS_USE_SANDBOX', DEBUG)
+# Android: FCM HTTP v1 (Firebase 콘솔 > 서비스 계정 > 비공개 키 JSON)
+FCM_SERVICE_ACCOUNT_FILE = os.getenv('FCM_SERVICE_ACCOUNT_FILE', '')
