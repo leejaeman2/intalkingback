@@ -186,3 +186,5 @@ staticfiles/
 
 # FCM 서비스 계정 키 (개인키 포함, 절대 커밋 금지)
 intalking.json
+
+*.p8
