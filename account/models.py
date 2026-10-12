@@ -50,8 +50,14 @@ class IntalkingUser(AbstractUser):
   USERNAME_FIELD = 'username'   # 로그인 아이디 (admin 로그인도 이 필드 사용)
   REQUIRED_FIELDS = []          # createsuperuser는 아이디+비밀번호만 입력받음
 
+  def save(self, *args, **kwargs):
+    if not self.email:
+      self.email = None   # ''는 unique 충돌 → NULL로 저장(MySQL은 NULL 중복 허용)
+    super().save(*args, **kwargs)
+
   def __str__(self):
-    return f'{self.email} ({self.nickname})' if self.nickname else self.email
+    label = self.email or self.username
+    return f'{label} ({self.nickname})' if self.nickname else label
 
 
 class DeletedUser(models.Model):
