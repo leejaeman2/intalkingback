@@ -10,14 +10,13 @@ from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchem
   TokenSchema, LoginErrorSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
   EditFanSchema, EditInflSchema,
   PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema,
-  ResetPasswordSchema, PushTokenSchema)
+  ResetPasswordSchema, PushTokenSchema, TokenRefreshOutputSchema)
 from notice.models import Notice
 from chat.consumers import online_users
 from typing import Optional
 from django.shortcuts import get_object_or_404
 from ninja_jwt.tokens import RefreshToken
-from ninja_jwt.schema import (TokenObtainPairInputSchema, 
-  TokenObtainPairOutputSchema, TokenRefreshInputSchema)
+from ninja_jwt.schema import TokenObtainPairInputSchema, TokenRefreshInputSchema
 
 router = Router()
 
@@ -181,24 +180,18 @@ def signin(request, payload: SigninSchema):
     "fan": authuser.fan
   }
 
-@router.post('refresh/', response=TokenObtainPairOutputSchema, auth=None)
+@router.post('refresh/', response=TokenRefreshOutputSchema, auth=None)
 def getRefresh(request, payload: TokenRefreshInputSchema):
   try:
     refresh = RefreshToken(payload.refresh)
-    user_id = refresh['user_id']
-    token_version_in_jwt = refresh.payload.get('token_version', 0)
-    user = IntalkingUser.objects.get(id=user_id)
-    if user.token_version != token_version_in_jwt:
-      raise HttpError(401, '다른 기기에서 로그인되었습니다')
-    access = refresh.access_token
-    access['token_version'] = user.token_version
-    return {
-      "access": str(access),
-      "refresh": str(refresh),
-      "email": ''
-    }
-  except Exception as e:
-    return router.create_error_response(status=401, message=str(e))
+    user = IntalkingUser.objects.get(id=refresh['user_id'])
+  except Exception:
+    raise HttpError(401, '토큰이 유효하지 않습니다')
+  if user.token_version != refresh.payload.get('token_version', 0):
+    raise HttpError(401, '다른 기기에서 로그인되었습니다')
+  access = refresh.access_token
+  access['token_version'] = user.token_version
+  return {"access": str(access), "refresh": str(refresh)}
 
 @router.get('islogin/', response=IntalkingUserSchema)
 def isLogin(request):

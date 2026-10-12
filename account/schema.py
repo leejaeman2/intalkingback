@@ -107,6 +107,10 @@ class LoginErrorSchema(Schema):
   fail_count: int = 0
   locked: bool = False
 
+class TokenRefreshOutputSchema(Schema):
+  access: str
+  refresh: str
+
 class TokenSchema(Schema):
   access: str
   refresh: str
