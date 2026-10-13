@@ -9,7 +9,9 @@ PeerConnection 은 Daphne 이벤트 루프(프로세스 메모리)에 살아 있
 """
 import asyncio
 import os
+import re
 import tempfile
+from zoneinfo import ZoneInfo
 
 import av
 import numpy as np
@@ -17,6 +19,7 @@ from aiortc import RTCConfiguration, RTCIceServer, RTCPeerConnection, RTCSession
 from aiortc.mediastreams import MediaStreamError
 from django.core.files import File as DjangoFile
 from django.db import close_old_connections
+from django.utils import timezone
 
 from chat.turn import make_turn_credentials
 
@@ -25,6 +28,7 @@ GAP_FILL_SEC = 0.3                # 이보다 길게 프레임이 끊기면(무�
 JOIN_GRACE_SEC = 15               # 한쪽만 끝났을 때 상대 트랙 도착을 기다리는 시간
 MAX_CALL_SEC = 4 * 3600           # 비정상 세션 강제 종료
 MP3_BITRATE = 32000
+KST = ZoneInfo('Asia/Seoul')
 
 sessions = {}                     # room → RecordingSession
 
@@ -99,6 +103,7 @@ class RecordingSession:
     self.fan_id = fan_id
     self.infl_id = infl_id
     self.t0 = asyncio.get_running_loop().time()
+    self.started_at = timezone.now()   # 파일명용 통화 시작 시각
     self.participants = {}        # role → Participant
     self.finalizing = False
     self.watchdog = asyncio.create_task(self._watchdog())
@@ -180,14 +185,32 @@ class RecordingSession:
       os.remove(mp3_path)
       close_old_connections()
 
+  def _file_name(self):
+    """2026/10/13/20261013_153012_fan닉네임_infl닉네임.mp3 (KST 통화 시작 시각)"""
+    from account.models import IntalkingUser
+    users = {u.id: u for u in IntalkingUser.objects.filter(id__in=[self.fan_id, self.infl_id])}
+    t = self.started_at.astimezone(KST)
+    return f"{t:%Y/%m/%d}/{t:%Y%m%d_%H%M%S}_{_name_part(users.get(self.fan_id))}_{_name_part(users.get(self.infl_id))}.mp3"
+
   def _save(self, mp3_path, duration):
     from infllist.models import CallRecording
     rec, _ = CallRecording.objects.get_or_create(
       room=self.room, defaults={'fan_id': self.fan_id, 'infl_id': self.infl_id})
     with open(mp3_path, 'rb') as f:
-      rec.merged.save(f'{self.room}.mp3', DjangoFile(f), save=False)
+      rec.merged.save(self._file_name(), DjangoFile(f), save=False)
     rec.duration = max(rec.duration, duration)
     rec.save()
+
+
+def _name_part(user):
+  """파일명에 넣을 닉네임 (한글/영문/숫자/-만, 없으면 이메일 앞부분)"""
+  if not user:
+    return 'unknown'
+  for raw in (user.nickname, user.email.split('@')[0]):
+    cleaned = re.sub(r'[^\w-]', '', raw or '').replace('_', '-')[:30]
+    if cleaned:
+      return cleaned
+  return 'unknown'
 
 
 def mix_to_mp3(tracks, out_path, block=RATE * 10):
