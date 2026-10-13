@@ -188,3 +188,5 @@ staticfiles/
 intalking.json
 
 *.p8
+
+upload.py
