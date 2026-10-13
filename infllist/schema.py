@@ -26,3 +26,15 @@ class FanListOutputSchema(Schema):
   duration: int
   last: str
   created_at: str
+
+class RecordingOfferSchema(Schema):
+  room: str
+  peer_email: EmailStr
+  sdp: str
+
+class RecordingAnswerSchema(Schema):
+  sdp: str
+  type: str
+
+class RecordingStopSchema(Schema):
+  room: str

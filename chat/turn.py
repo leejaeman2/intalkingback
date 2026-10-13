@@ -7,9 +7,8 @@ from ninja import Router
 
 router = Router()
 
-@router.get('/credentials/')
-def turn_credentials(request):
-    user_id = str(request.auth.id)
+def make_turn_credentials(user_id):
+    """coturn REST API(use-auth-secret) 방식 임시 계정. 녹음 서버(aiortc)도 같은 TURN 을 씀"""
     secret = os.getenv('TURN_AUTH_SECRET', '')
     realm = os.getenv('TURN_REALM', '')
     ttl = 24 * 3600
@@ -27,3 +26,7 @@ def turn_credentials(request):
             f'turns:{realm}:5349?transport=tcp',
         ],
     }
+
+@router.get('/credentials/')
+def turn_credentials(request):
+    return make_turn_credentials(str(request.auth.id))

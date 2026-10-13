@@ -195,6 +195,25 @@ AUTH_USER_MODEL = 'account.IntalkingUser'
 MEDIA_URL = os.getenv('MEDIA_URL', '/media/')
 MEDIA_ROOT = BASE_DIR / 'media/'
 
+# 통화 녹음(mp3)만 S3 에 저장 (프로필 사진 등 기존 미디어는 로컬 그대로)
+# 버킷 미설정(개발) 시 로컬 MEDIA_ROOT. 인증: AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY 또는 EC2 IAM 역할
+RECORDING_S3_BUCKET = os.getenv('RECORDING_S3_BUCKET', '')
+STORAGES = {
+  'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+  'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+  'recordings': {
+    'BACKEND': 'storages.backends.s3.S3Storage',
+    'OPTIONS': {
+      'bucket_name': RECORDING_S3_BUCKET,
+      'region_name': os.getenv('RECORDING_S3_REGION', 'ap-northeast-2'),
+      'default_acl': None,          # 비공개 버킷 → 관리자 재생은 서명 URL
+      'querystring_auth': True,
+      'querystring_expire': 3600,
+      'file_overwrite': False,
+    },
+  } if RECORDING_S3_BUCKET else {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+}
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=36500),

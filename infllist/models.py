@@ -1,5 +1,11 @@
+from django.core.files.storage import storages
 from django.db import models
 from account.models import IntalkingUser
+
+
+def recording_storage():
+  # settings.STORAGES['recordings'] (운영: S3)
+  return storages['recordings']
 
 
 def recording_path(instance, filename):
@@ -7,10 +13,9 @@ def recording_path(instance, filename):
 
 
 class CallRecording(models.Model):
-  """1:1 보이스톡 통화 녹음. 각 참여자가 자기 마이크 트랙을 업로드하고,
-  서버에서 두 트랙을 병합해 최종 파일(merged)을 보관한다.
-  파일은 Django 기본 스토리지에 저장되므로 EC2 로컬(MEDIA_ROOT) 또는
-  django-storages 설정 시 S3로 전환된다."""
+  """1:1 보이스톡 통화 녹음. 녹음 서버(infllist/recorder.py)가 양쪽 목소리를
+  섞은 mp3 를 merged 에 저장한다 (settings.STORAGES['recordings'] → 운영 S3).
+  fan_track/infl_track 은 이전 방식(단말 녹음 업로드)의 기존 데이터용."""
   room = models.CharField(max_length=160, unique=True, db_index=True)
   fan = models.ForeignKey(IntalkingUser, on_delete=models.SET_NULL,
     null=True, blank=True, related_name='+')
@@ -18,7 +23,7 @@ class CallRecording(models.Model):
     null=True, blank=True, related_name='+')
   fan_track = models.FileField(upload_to=recording_path, null=True, blank=True)
   infl_track = models.FileField(upload_to=recording_path, null=True, blank=True)
-  merged = models.FileField(upload_to=recording_path, null=True, blank=True)
+  merged = models.FileField(upload_to=recording_path, storage=recording_storage, null=True, blank=True)
   duration = models.IntegerField(default=0)
   created_at = models.DateTimeField(auto_now_add=True)
 
