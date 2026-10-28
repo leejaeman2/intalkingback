@@ -27,6 +27,10 @@ class CheckEmailSchema(Schema):
 class CheckUseridSchema(Schema):
   userid: str
 
+class FindUseridSchema(Schema):
+  nickname: str         # 실명 필드가 없어 닉네임으로 대조 (추후 NICE 본인인증으로 교체)
+  email: str
+
 class ResetPasswordSchema(Schema):
   userid: str
   password: str

@@ -10,7 +10,7 @@ from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchem
   TokenSchema, LoginErrorSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
   EditFanSchema, EditInflSchema,
   PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema,
-  ResetPasswordSchema, PushTokenSchema, TokenRefreshOutputSchema)
+  FindUseridSchema, ResetPasswordSchema, PushTokenSchema, TokenRefreshOutputSchema)
 from notice.models import Notice
 from chat.consumers import online_users
 from typing import Optional
@@ -31,6 +31,15 @@ def checkUserid(request, payload: CheckUseridSchema):
   if IntalkingUser.objects.filter(username=payload.userid).exists():
     raise HttpError(400, '동일한 아이디가 존재합니다')
   return {'valid': True}
+
+@router.post('find-userid/', response={200: dict, 404: dict}, auth=None)
+def findUserid(request, payload: FindUseridSchema):
+  user = IntalkingUser.objects.filter(
+    nickname=payload.nickname.strip(), email__iexact=payload.email.strip()
+  ).first()
+  if not user:
+    return 404, {'message': '일치하는 회원 정보가 없습니다'}
+  return {'userid': user.username}
 
 @router.post('reset-password/', response={200: dict, 404: dict}, auth=None)
 def resetPassword(request, payload: ResetPasswordSchema):
