@@ -312,15 +312,17 @@ def getInflUsers(request):
   users = IntalkingUser.objects.filter(fan='INFL')
   result = []
   for user in users:
+    fanmeeting = Notice.active_events(user, 'FANMEETING').first()
+    party = Notice.active_events(user, 'PARTY').first()
     data = {
       'email': user.email, 'username': user.username,
       'nickname': user.nickname, 'fan': user.fan,
       'hobby': user.hobby, 'food': user.food,
       'mbti': user.mbti, 'info': user.info, 'callmode': user.callmode,
-      'has_fanmeeting': Notice.objects.filter(infl=user, type='FANMEETING', is_deleted=False).exists(),
-      'has_party': Notice.objects.filter(infl=user, type='PARTY', is_deleted=False).exists(),
-      'fanmeeting_id': getattr(Notice.objects.filter(infl=user, type='FANMEETING', is_deleted=False).first(), 'id', None),
-      'party_id': getattr(Notice.objects.filter(infl=user, type='PARTY', is_deleted=False).first(), 'id', None),
+      'has_fanmeeting': fanmeeting is not None,
+      'has_party': party is not None,
+      'fanmeeting_id': getattr(fanmeeting, 'id', None),
+      'party_id': getattr(party, 'id', None),
     }
     for i in range(1, 9):
       photo = getattr(user, f'photo{i}')

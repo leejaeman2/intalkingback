@@ -23,6 +23,7 @@ class FanListOutputSchema(Schema):
   fan_email: str
   fan_nickname: str | None = None
   fan_photo1: str | None = None
+  fan_charnum: int | None = None
   duration: int
   last: str
   created_at: str

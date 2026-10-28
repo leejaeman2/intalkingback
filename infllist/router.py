@@ -70,6 +70,7 @@ def get_fan_list(request):
       'fan_email': item.fan.email,
       'fan_nickname': item.fan.nickname,
       'fan_photo1': item.fan.photo1.url if item.fan.photo1 else None,
+      'fan_charnum': item.fan.charnum,
       'duration': item.duration,
       'last': str(item.last),
       'created_at': str(item.created_at),

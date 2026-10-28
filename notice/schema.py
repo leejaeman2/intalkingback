@@ -6,4 +6,5 @@ class NoticeOutputSchema(Schema):
   type: str
   title: str
   content: str
+  event_date: str | None = None
   created_at: str
