@@ -66,8 +66,8 @@ class PushTokenSchema(Schema):
   platform: Literal['ios', 'android']
   token: str
 
-class EditFanSchema(Schema):
-  nickname: str | None = None
+class EditFanSchema(Schema):   # 닉네임/캐릭터는 수정 불가
+  email: str | None = None
   phone: str | None = None
   hobby: str | None = None
   food: str | None = None

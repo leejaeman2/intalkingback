@@ -213,7 +213,15 @@ def getProfile(request):
 @router.patch('fan/', response=FanMeSchema)
 def editProfile(request, payload: EditFanSchema):
   user = request.auth
-  if payload.nickname is not None: user.nickname = payload.nickname
+  if payload.email is not None:
+    email = payload.email.strip().lower()
+    try:
+      validate_email(email)
+    except ValidationError:
+      raise HttpError(400, '올바른 이메일 형식이 아닙니다')
+    if IntalkingUser.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
+      raise HttpError(400, '동일한 이메일이 존재합니다')
+    user.email = email
   if payload.phone is not None: user.phone = payload.phone
   if payload.hobby is not None: user.hobby = payload.hobby
   if payload.food is not None: user.food = payload.food
