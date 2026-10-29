@@ -16,6 +16,7 @@ from chat.consumers import online_users
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from typing import Optional
+from datetime import date
 from django.shortcuts import get_object_or_404
 from ninja_jwt.tokens import RefreshToken
 from ninja_jwt.schema import TokenObtainPairInputSchema, TokenRefreshInputSchema
@@ -96,6 +97,7 @@ def signupInfl(request,
   bank: str = Form(...), account: str = Form(...),
   code: str = Form(...), hobby: str = Form(...),
   food: str = Form(...), mbti: str = Form(...),
+  birth: date = Form(None),
   photo1: UploadedFile = File(...),
   photo2: UploadedFile = File(None),
   photo3: UploadedFile = File(None),
@@ -119,7 +121,7 @@ def signupInfl(request,
     password=make_password(password),
     nickname=nickname, phone=phone,
     bank=bank, account=account, code=code or None,
-    hobby=hobby, food=food, mbti=mbti,
+    hobby=hobby, food=food, mbti=mbti, birth=birth,
     fan='INFL',
     is_approved=bool(code),   # 코드 있으면 즉시 승인, 없으면 관리자 승인 대기
   )

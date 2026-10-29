@@ -30,6 +30,7 @@ class IntalkingUser(AbstractUser):
   hobby = models.CharField(max_length=255, null=True, blank=True)
   food = models.CharField(max_length=255, null=True, blank=True)
   mbti = models.CharField(max_length=4, choices=MBTI_CHOICES, null=True, blank=True)
+  birth = models.DateField(null=True, blank=True)
   info = models.TextField(null=True, blank=True)
   point = models.IntegerField(default=0)
   callmode = models.BooleanField(default=True)
