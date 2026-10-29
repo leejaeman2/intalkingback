@@ -62,6 +62,12 @@ def get_infl_list(request):
     for item in items
   ]
 
+@router.delete('delete/{item_id}/', response={200: dict})
+def delete_infl(request, item_id: int):
+  item = get_object_or_404(InflList, id=item_id, fan=request.auth)
+  item.delete()
+  return {'message': '인플루언서가 목록에서 삭제되었습니다'}
+
 @router.get('fans/', response=list[FanListOutputSchema])
 def get_fan_list(request):
   items = InflList.objects.filter(infl=request.auth).select_related('fan').order_by('-last')
