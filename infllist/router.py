@@ -46,7 +46,7 @@ def add_infl(request, payload: AddInflSchema):
 
 @router.get('list/', response=list[InflListOutputSchema])
 def get_infl_list(request):
-  items = InflList.objects.filter(fan=request.auth).select_related('infl').order_by('-last')
+  items = InflList.objects.filter(fan=request.auth).select_related('infl').order_by('-last')[:InflList.MAX_PER_FAN]
   return [
     {
       'id': item.id,
@@ -54,6 +54,7 @@ def get_infl_list(request):
       'infl_email': item.infl.email,
       'infl_nickname': item.infl.nickname,
       'infl_photo1': item.infl.photo1.url if item.infl.photo1 else None,
+      'infl_callmode': item.infl.callmode,
       'duration': item.duration,
       'last': str(item.last),
       'created_at': str(item.created_at),

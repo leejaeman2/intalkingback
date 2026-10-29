@@ -1,5 +1,5 @@
 from django.core.files.storage import storages
-from django.db import models
+from django.db import models, transaction
 from account.models import IntalkingUser
 
 
@@ -52,31 +52,29 @@ class InflList(models.Model):
   def __str__(self):
     return f'{self.fan.email} -> {self.infl.email}'
 
+  MAX_PER_FAN = 5
+
   @classmethod
   def add_infl(cls, fan, infl, duration=0):
-    existing = cls.objects.filter(fan=fan, infl=infl).first()
-    if existing:
-      existing.duration = duration
-      existing.save(update_fields=['duration', 'last'])
-      return existing
-
-    if cls.objects.filter(fan=fan).count() >= 5:
-      cls.objects.filter(fan=fan).order_by('created_at').first().delete()
-
-    return cls.objects.create(fan=fan, infl=infl, duration=duration)
+    return cls.add_call_record(fan=fan, infl=infl, duration=duration)
 
   @classmethod
   def add_call_record(cls, fan, infl, duration=0):
-    existing = cls.objects.filter(fan=fan, infl=infl).first()
-    if existing:
-      existing.duration = duration
-      existing.save(update_fields=['duration', 'last'])
-      return existing
+    """통화 완료 시 팬의 '내 인플 보기'에 추가. 팬당 최대 5명,
+    6번째 인플이 추가되면 가장 먼저 추가된(created_at) 인플을 삭제한다.
+    통화 종료 시 팬/인플 양쪽이 동시에 보고하므로 팬 row 를 잠가 중복 삭제를 막는다."""
+    with transaction.atomic():
+      IntalkingUser.objects.select_for_update().filter(pk=fan.pk).first()
 
-    if cls.objects.filter(fan=fan).count() >= 5:
-      cls.objects.filter(fan=fan).order_by('created_at').first().delete()
+      existing = cls.objects.filter(fan=fan, infl=infl).first()
+      if existing:
+        existing.duration = duration
+        existing.save(update_fields=['duration', 'last'])
+        return existing
 
-    if cls.objects.filter(infl=infl).count() >= 5:
-      cls.objects.filter(infl=infl).order_by('created_at').first().delete()
+      # 새로 추가될 1명 자리를 남기고 오래된 순으로 삭제
+      old_ids = list(cls.objects.filter(fan=fan).order_by('-created_at')
+        .values_list('id', flat=True)[cls.MAX_PER_FAN - 1:])
+      cls.objects.filter(id__in=old_ids).delete()
 
-    return cls.objects.create(fan=fan, infl=infl, duration=duration)
+      return cls.objects.create(fan=fan, infl=infl, duration=duration)

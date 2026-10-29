@@ -13,6 +13,9 @@ from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchem
   FindUseridSchema, ResetPasswordSchema, PushTokenSchema, TokenRefreshOutputSchema)
 from notice.models import Notice
 from chat.consumers import online_users
+from infllist.models import InflList
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from typing import Optional
 from django.shortcuts import get_object_or_404
 from ninja_jwt.tokens import RefreshToken
@@ -248,7 +251,20 @@ def toggleCallmode(request):
   user = request.user
   user.callmode = not user.callmode
   user.save(update_fields=['callmode'])
+  notify_callmode(user)
   return {'callmode': user.callmode}
+
+def notify_callmode(infl):
+  # 이 인플을 '내 인플 보기'에 가진 접속 중 팬들에게 통화 모드 변경을 실시간 전달
+  if infl.fan != 'INFL':
+    return
+  channel_layer = get_channel_layer()
+  data = {'type': 'callmode_changed', 'peer': infl.email, 'callmode': infl.callmode}
+  fan_emails = InflList.objects.filter(infl=infl).values_list('fan__email', flat=True)
+  for email in fan_emails:
+    channel = online_users.get(email)
+    if channel:
+      async_to_sync(channel_layer.send)(channel, {'type': 'relay', 'data': data})
 
 @router.put('push-token/', response={200: dict})
 def registerPushToken(request, payload: PushTokenSchema):

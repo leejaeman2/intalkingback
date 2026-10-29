@@ -10,6 +10,7 @@ class InflListOutputSchema(Schema):
   infl_email: str
   infl_nickname: str | None = None
   infl_photo1: str | None = None
+  infl_callmode: bool = True
   duration: int
   last: str
   created_at: str
