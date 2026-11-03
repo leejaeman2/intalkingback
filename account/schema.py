@@ -1,5 +1,6 @@
 import re
-from typing import Literal, Union, Annotated
+from typing import Literal, Union, Annotated, Optional
+from datetime import date
 from ninja import Schema
 from ninja.orm import create_schema
 from pydantic import EmailStr, Field, field_validator
@@ -44,6 +45,7 @@ class SignupFanSchema(Schema):
   nickname: str
   phone: str
   character: int
+  birth: Optional[date] = None
 
   _check_password = field_validator('password')(validate_password)
 

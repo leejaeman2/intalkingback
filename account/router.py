@@ -76,6 +76,7 @@ def signupFan(request, payload: SignupFanSchema):
     nickname=payload.nickname,
     phone=payload.phone,
     charnum=payload.character,
+    birth=payload.birth,
     fan='FAN',
   )
   return user
