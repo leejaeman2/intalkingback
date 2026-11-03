@@ -7,8 +7,13 @@ from notice.schema import NoticeOutputSchema
 router = Router()
 
 @router.get('list/', response=list[NoticeOutputSchema])
-def get_notices(request):
-  notices = Notice.objects.filter(is_deleted=False)
+def get_notices(request, offset: int = 0, limit: int = 20, type: str | None = None):
+  # 무한 스크롤: offset 부터 limit 개씩. type(NOTICE/FANMEETING/PARTY) 지정 시 해당 종류만
+  limit = min(max(limit, 1), 50)
+  notices = Notice.objects.filter(is_deleted=False).order_by('-created_at', '-id')
+  if type:
+    notices = notices.filter(type=type)
+  notices = notices[max(offset, 0):max(offset, 0) + limit]
   return [
     {
       'id': n.id,
