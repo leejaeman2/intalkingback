@@ -74,6 +74,7 @@ class EditFanSchema(Schema):   # 닉네임/캐릭터는 수정 불가
   hobby: str | None = None
   food: str | None = None
   mbti: str | None = None
+  birth: date | None = None
 class EditInflSchema(Schema):
   nickname: str | None = None
   phone: str | None = None

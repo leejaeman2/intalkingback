@@ -231,6 +231,7 @@ def editProfile(request, payload: EditFanSchema):
   if payload.hobby is not None: user.hobby = payload.hobby
   if payload.food is not None: user.food = payload.food
   if payload.mbti is not None: user.mbti = payload.mbti
+  if payload.birth is not None: user.birth = payload.birth
   user.save()
   return user
 
@@ -331,25 +332,30 @@ def callCharge(request):
   user.save(update_fields=['point'])
   return {'message': '통화 포인트가 차감되었습니다', 'point': user.point}
 
+def infl_with_notice(user):
+  fanmeeting = Notice.latest_event(user, 'FANMEETING')
+  party = Notice.latest_event(user, 'PARTY')
+  data = {
+    'email': user.email, 'username': user.username,
+    'nickname': user.nickname, 'fan': user.fan,
+    'hobby': user.hobby, 'food': user.food,
+    'mbti': user.mbti, 'info': user.info, 'callmode': user.callmode,
+    'has_fanmeeting': fanmeeting is not None,
+    'has_party': party is not None,
+    'fanmeeting_id': getattr(fanmeeting, 'id', None),
+    'party_id': getattr(party, 'id', None),
+  }
+  for i in range(1, 9):
+    photo = getattr(user, f'photo{i}')
+    data[f'photo{i}'] = photo.url if photo else None
+  return data
+
 @router.get('infl/', response=list[InflWithNoticeSchema])
 def getInflUsers(request):
   users = IntalkingUser.objects.filter(fan='INFL')
-  result = []
-  for user in users:
-    fanmeeting = Notice.latest_event(user, 'FANMEETING')
-    party = Notice.latest_event(user, 'PARTY')
-    data = {
-      'email': user.email, 'username': user.username,
-      'nickname': user.nickname, 'fan': user.fan,
-      'hobby': user.hobby, 'food': user.food,
-      'mbti': user.mbti, 'info': user.info, 'callmode': user.callmode,
-      'has_fanmeeting': fanmeeting is not None,
-      'has_party': party is not None,
-      'fanmeeting_id': getattr(fanmeeting, 'id', None),
-      'party_id': getattr(party, 'id', None),
-    }
-    for i in range(1, 9):
-      photo = getattr(user, f'photo{i}')
-      data[f'photo{i}'] = photo.url if photo else None
-    result.append(data)
-  return result
+  return [infl_with_notice(user) for user in users]
+
+@router.get('infl/detail/', response=InflWithNoticeSchema)
+def getInflDetail(request, email: str):
+  user = get_object_or_404(IntalkingUser, email=email, fan='INFL')
+  return infl_with_notice(user)
