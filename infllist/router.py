@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from account.models import IntalkingUser
 from infllist.models import InflList
 from infllist.schema import (
-  AddInflSchema, InflListOutputSchema, CallEndSchema, FanListOutputSchema,
+  AddInflSchema, InflListOutputSchema, CallEndSchema, FanListOutputSchema, FanDetailOutputSchema,
   RecordingOfferSchema, RecordingAnswerSchema, RecordingStopSchema,
 )
 from infllist import recorder
@@ -84,6 +84,25 @@ def get_fan_list(request):
     }
     for item in items
   ]
+
+# 내 팬(InflList 관계가 있는 팬)만 조회 가능. 연락처/포인트 등 민감 정보는 제외
+@router.get('fans/detail/', response=FanDetailOutputSchema)
+def get_fan_detail(request, email: str):
+  item = get_object_or_404(InflList.objects.select_related('fan'), infl=request.auth, fan__email=email)
+  fan = item.fan
+  return {
+    'email': fan.email,
+    'nickname': fan.nickname,
+    'charnum': fan.charnum,
+    'photo1': fan.photo1.url if fan.photo1 else None,
+    'hobby': fan.hobby,
+    'food': fan.food,
+    'mbti': fan.mbti,
+    'birth': str(fan.birth) if fan.birth else None,
+    'duration': item.duration,
+    'last': str(item.last),
+    'created_at': str(item.created_at),
+  }
 
 @router.post('call-end/', response={200: dict})
 def call_end(request, payload: CallEndSchema):

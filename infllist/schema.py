@@ -29,6 +29,19 @@ class FanListOutputSchema(Schema):
   last: str
   created_at: str
 
+class FanDetailOutputSchema(Schema):
+  email: str
+  nickname: str | None = None
+  charnum: int | None = None
+  photo1: str | None = None
+  hobby: str | None = None
+  food: str | None = None
+  mbti: str | None = None
+  birth: str | None = None
+  duration: int
+  last: str
+  created_at: str
+
 class RecordingOfferSchema(Schema):
   room: str
   peer_email: EmailStr
