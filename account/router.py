@@ -335,8 +335,8 @@ def getInflUsers(request):
   users = IntalkingUser.objects.filter(fan='INFL')
   result = []
   for user in users:
-    fanmeeting = Notice.active_events(user, 'FANMEETING').first()
-    party = Notice.active_events(user, 'PARTY').first()
+    fanmeeting = Notice.latest_event(user, 'FANMEETING')
+    party = Notice.latest_event(user, 'PARTY')
     data = {
       'email': user.email, 'username': user.username,
       'nickname': user.nickname, 'fan': user.fan,

@@ -29,6 +29,14 @@ class Notice(models.Model):
     return cls.objects.filter(infl=infl, type=type, is_deleted=False).filter(
       Q(event_date__isnull=True) | Q(event_date__gte=timezone.localdate()))
 
+  @classmethod
+  def latest_event(cls, infl, type):
+    # 가장 최근에 작성한 팬미팅/인파티 글이 진행일 오늘 이후면 반환, 지났거나 진행일이 없으면 None
+    latest = cls.objects.filter(infl=infl, type=type, is_deleted=False).order_by('-created_at').first()
+    if latest and latest.event_date and latest.event_date >= timezone.localdate():
+      return latest
+    return None
+
   @property
   def is_expired(self):
     return self.event_date is not None and self.event_date < timezone.localdate()
