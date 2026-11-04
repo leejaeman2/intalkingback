@@ -3,7 +3,7 @@ import time
 import uuid
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from chat.push import get_push_target, send_call_push
+from chat.push import get_push_target, send_call_push, is_blocked
 
 online_users = {}
 background_users = set()   # WS는 붙어 있지만 앱이 백그라운드인 사용자 → 푸시로 착신
@@ -69,6 +69,10 @@ class CallConsumer(AsyncWebsocketConsumer):
         return
       if info['callmode'] is False:
         await self.send(text_data=json.dumps({'type': 'call_off', 'target': target}))
+        return
+      # 차단된 팬 → 인플에게 착신/푸시 없이, 팬에게는 차단 사실을 숨기고 '접속 중 아님'으로 응답
+      if self.email and await is_blocked(target, self.email):
+        await self.send(text_data=json.dumps({'type': 'call_unavailable', 'target': target}))
         return
       incoming = {
         'type': 'incoming_call',

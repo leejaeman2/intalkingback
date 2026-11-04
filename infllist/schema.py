@@ -25,6 +25,7 @@ class FanListOutputSchema(Schema):
   fan_nickname: str | None = None
   fan_photo1: str | None = None
   fan_charnum: int | None = None
+  blocked: bool = False
   duration: int
   last: str
   created_at: str
@@ -46,6 +47,9 @@ class FanDetailOutputSchema(Schema):
 class FanMemoSchema(Schema):
   email: str
   memo: str = Field(max_length=1000)
+
+class FanBlockSchema(Schema):
+  email: str
 
 class RecordingOfferSchema(Schema):
   room: str

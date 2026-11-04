@@ -2,9 +2,9 @@ from ninja import Router
 from ninja.errors import HttpError
 from django.shortcuts import get_object_or_404
 from account.models import IntalkingUser
-from infllist.models import InflList
+from infllist.models import InflList, InflBlock
 from infllist.schema import (
-  AddInflSchema, InflListOutputSchema, CallEndSchema, FanListOutputSchema, FanDetailOutputSchema, FanMemoSchema,
+  AddInflSchema, InflListOutputSchema, CallEndSchema, FanListOutputSchema, FanDetailOutputSchema, FanMemoSchema, FanBlockSchema,
   RecordingOfferSchema, RecordingAnswerSchema, RecordingStopSchema,
 )
 from infllist import recorder
@@ -71,6 +71,7 @@ def delete_infl(request, item_id: int):
 @router.get('fans/', response=list[FanListOutputSchema])
 def get_fan_list(request):
   items = InflList.objects.filter(infl=request.auth).select_related('fan').order_by('-last')
+  blocked_ids = set(InflBlock.objects.filter(infl=request.auth).values_list('fan_id', flat=True))
   return [
     {
       'id': item.id,
@@ -78,6 +79,7 @@ def get_fan_list(request):
       'fan_nickname': item.fan.nickname,
       'fan_photo1': item.fan.photo1.url if item.fan.photo1 else None,
       'fan_charnum': item.fan.charnum,
+      'blocked': item.fan_id in blocked_ids,
       'duration': item.duration,
       'last': str(item.last),
       'created_at': str(item.created_at),
@@ -112,6 +114,17 @@ def update_fan_memo(request, payload: FanMemoSchema):
   item.memo = payload.memo.strip()
   item.save(update_fields=['memo'])
   return {'message': '메모가 저장되었습니다', 'memo': item.memo}
+
+# 차단 토글. 내 팬(InflList 관계가 있는 팬)만 차단 가능, 해제는 관계가 사라져도 가능
+@router.post('fans/block/', response={200: dict})
+def toggle_fan_block(request, payload: FanBlockSchema):
+  block = InflBlock.objects.filter(infl=request.auth, fan__email=payload.email).first()
+  if block:
+    block.delete()
+    return {'blocked': False}
+  item = get_object_or_404(InflList, infl=request.auth, fan__email=payload.email)
+  InflBlock.objects.get_or_create(infl=request.auth, fan=item.fan)
+  return {'blocked': True}
 
 @router.post('call-end/', response={200: dict})
 def call_end(request, payload: CallEndSchema):

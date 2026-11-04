@@ -10,6 +10,7 @@ import httpx
 from channels.db import database_sync_to_async
 from django.conf import settings
 from account.models import IntalkingUser
+from infllist.models import InflBlock
 
 _apns_token = {'value': None, 'exp': 0}
 _fcm_token = {'value': None, 'exp': 0}
@@ -102,6 +103,11 @@ async def _send_fcm(token, data):
 @database_sync_to_async
 def get_push_target(email):
   return IntalkingUser.objects.filter(email=email).values('callmode', 'push_platform', 'push_token').first()
+
+
+@database_sync_to_async
+def is_blocked(infl_email, fan_email):
+  return InflBlock.objects.filter(infl__email=infl_email, fan__email=fan_email).exists()
 
 
 @database_sync_to_async

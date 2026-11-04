@@ -79,3 +79,17 @@ class InflList(models.Model):
       cls.objects.filter(id__in=old_ids).delete()
 
       return cls.objects.create(fan=fan, infl=infl, duration=duration)
+
+
+class InflBlock(models.Model):
+  """인플이 차단한 팬. 차단된 팬이 전화를 걸면 인플에게 착신 신호를 보내지 않는다.
+  InflList 는 팬당 5명 초과 시 자동 삭제되므로 차단 정보는 별도로 보관한다."""
+  infl = models.ForeignKey(IntalkingUser, on_delete=models.CASCADE, related_name='blocked_fans')
+  fan = models.ForeignKey(IntalkingUser, on_delete=models.CASCADE, related_name='blocked_by')
+  created_at = models.DateTimeField(auto_now_add=True)
+
+  class Meta:
+    unique_together = ['infl', 'fan']
+
+  def __str__(self):
+    return f'{self.infl.email} x {self.fan.email}'
