@@ -3,15 +3,17 @@ from ninja.files import UploadedFile
 from ninja.errors import HttpError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
+from django.db import transaction
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from account.models import IntalkingUser, DeletedUser, InflCode
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
   TokenSchema, LoginErrorSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
   EditFanSchema, EditInflSchema,
-  PointChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema,
+  PointChargeSchema, CallChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema,
   FindUseridSchema, ResetPasswordSchema, PushTokenSchema, TokenRefreshOutputSchema)
 from notice.models import Notice
+from infllist.models import CallSettle
 from chat.consumers import online_users
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -323,13 +325,20 @@ def chargePoint(request, payload: PointChargeSchema):
 
 CALL_POINT = 16000   # 통화 연결 시 차감 포인트 (20분 단위)
 
+# 차감과 동시에 상대 인플의 통화 정산(CallSettle)에 배분액 적립
 @router.post('call-charge/', response={200: dict, 400: dict})
-def callCharge(request):
-  user = request.user
-  if user.point < CALL_POINT:
-    return 400, {'message': '포인트가 부족합니다', 'point': user.point}
-  user.point -= CALL_POINT
-  user.save(update_fields=['point'])
+def callCharge(request, payload: CallChargeSchema):
+  infl = None
+  if payload.peer_email:
+    infl = IntalkingUser.objects.filter(email=payload.peer_email, fan='INFL').first()
+  with transaction.atomic():
+    user = IntalkingUser.objects.select_for_update().get(pk=request.user.pk)
+    if user.point < CALL_POINT:
+      return 400, {'message': '포인트가 부족합니다', 'point': user.point}
+    user.point -= CALL_POINT
+    user.save(update_fields=['point'])
+    if infl and user.fan == 'FAN':
+      CallSettle.add_charge(fan=user, infl=infl, price=CALL_POINT, room=payload.room)
   return {'message': '통화 포인트가 차감되었습니다', 'point': user.point}
 
 def infl_with_notice(user):

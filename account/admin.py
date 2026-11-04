@@ -6,12 +6,13 @@ from .models import IntalkingUser, InflCode
 
 @admin.register(IntalkingUser)
 class IntalkingUserAdmin(UserAdmin):
-    list_display = ('username', 'nickname', 'phone', 'fan', 'is_approved', 'charnum', 'mbti', 'hobby', 'point', 'callmode', 'is_active')
-    list_editable = ('is_approved',)
-    list_filter = ('fan', 'is_approved', 'mbti', 'is_active')
+    list_display = ('username', 'nickname', 'phone', 'fan', 'is_approved', 'charnum', 'mbti', 'hobby', 'point', 'callmode', 'is_famous', 'is_active')
+    list_editable = ('is_approved', 'is_famous')
+    list_filter = ('fan', 'is_approved', 'is_famous', 'mbti', 'is_active')
     search_fields = ('username', 'nickname', 'phone')
     ordering = ('-date_joined',)
     actions = ('approve_users',)
+    fieldsets = UserAdmin.fieldsets + (('인플 정산', {'fields': ('is_famous',)}),)
 
     @admin.action(description='선택한 회원 승인')
     def approve_users(self, request, queryset):

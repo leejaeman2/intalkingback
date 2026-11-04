@@ -93,3 +93,54 @@ class InflBlock(models.Model):
 
   def __str__(self):
     return f'{self.infl.email} x {self.fan.email}'
+
+
+class CallSettle(models.Model):
+  """통화 1건의 정산. 팬이 20분 블록(16,000P)을 결제할 때마다 add_charge 로 누적되고,
+  배분율은 결제 시점의 인플 등급(is_famous)으로 고정해 이후 등급이 바뀌어도 과거 정산은 그대로 둔다.
+  일반 인플 40% / 회사 50% / 영업진 10%, 유명 인플 50% / 회사 40% / 영업진 10%."""
+  RATES = {
+    False: {'infl': 40, 'company': 50, 'sales': 10},
+    True: {'infl': 50, 'company': 40, 'sales': 10},
+  }
+
+  room = models.CharField(max_length=160, null=True, blank=True, db_index=True)
+  fan = models.ForeignKey(IntalkingUser, on_delete=models.SET_NULL,
+    null=True, blank=True, related_name='+')
+  infl = models.ForeignKey(IntalkingUser, on_delete=models.SET_NULL,
+    null=True, blank=True, related_name='settles')
+  fan_nickname = models.CharField(max_length=255, blank=True, default='')   # 팬 탈퇴 후에도 내역 표시용
+  is_famous = models.BooleanField(default=False)
+  blocks = models.IntegerField(default=0)            # 결제한 20분 블록 수
+  amount = models.IntegerField(default=0)            # 팬 결제 총액
+  infl_amount = models.IntegerField(default=0)       # 인플 적립금
+  company_amount = models.IntegerField(default=0)
+  sales_amount = models.IntegerField(default=0)
+  duration = models.IntegerField(default=0)          # 통화 시간 (초), call-end 시 갱신
+  created_at = models.DateTimeField(auto_now_add=True)
+
+  class Meta:
+    ordering = ['-created_at']
+
+  def __str__(self):
+    return f'{self.fan_nickname} -> {self.infl} {self.amount}원'
+
+  @classmethod
+  def add_charge(cls, fan, infl, price, room=None):
+    """같은 room 의 통화면 기존 정산에 누적, 아니면 새 정산 생성. 호출부의 transaction 안에서 실행."""
+    settle = None
+    if room:
+      settle = cls.objects.select_for_update().filter(room=room, fan=fan, infl=infl).first()
+    if not settle:
+      settle = cls(room=room, fan=fan, infl=infl, fan_nickname=fan.nickname or '', is_famous=infl.is_famous)
+
+    rate = cls.RATES[settle.is_famous]
+    infl_share = price * rate['infl'] // 100
+    sales_share = price * rate['sales'] // 100
+    settle.blocks += 1
+    settle.amount += price
+    settle.infl_amount += infl_share
+    settle.sales_amount += sales_share
+    settle.company_amount += price - infl_share - sales_share   # 나머지(반올림 오차 포함)는 회사
+    settle.save()
+    return settle

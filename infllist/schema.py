@@ -18,6 +18,7 @@ class InflListOutputSchema(Schema):
 class CallEndSchema(Schema):
   peer_email: EmailStr
   duration: int = 0
+  room: str | None = None
 
 class FanListOutputSchema(Schema):
   id: int
@@ -62,3 +63,22 @@ class RecordingAnswerSchema(Schema):
 
 class RecordingStopSchema(Schema):
   room: str
+
+class SettleOneSchema(Schema):
+  id: int
+  fan_nickname: str
+  created_at: str          # 'YYYY-MM-DD HH:MM' (KST)
+  duration: int
+  amount: int              # 인플 적립금
+
+class SettleMonthSchema(Schema):
+  year: int
+  month: int
+  start: str               # 조회 기간과 겹치는 해당 월의 시작/끝 날짜
+  end: str
+  total: int
+  items: list[SettleOneSchema]
+
+class SettleOutputSchema(Schema):
+  total: int
+  months: list[SettleMonthSchema]

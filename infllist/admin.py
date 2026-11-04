@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import InflList, CallRecording, InflBlock
+from .models import InflList, CallRecording, InflBlock, CallSettle
 
 @admin.register(InflList)
 class InflListAdmin(admin.ModelAdmin):
@@ -13,6 +13,14 @@ class InflListAdmin(admin.ModelAdmin):
 class InflBlockAdmin(admin.ModelAdmin):
     list_display = ('infl', 'fan', 'created_at')
     search_fields = ('infl__email', 'fan__email')
+    ordering = ('-created_at',)
+
+@admin.register(CallSettle)
+class CallSettleAdmin(admin.ModelAdmin):
+    list_display = ('infl', 'fan_nickname', 'is_famous', 'blocks', 'amount', 'infl_amount',
+      'company_amount', 'sales_amount', 'duration', 'created_at')
+    list_filter = ('is_famous', 'created_at')
+    search_fields = ('infl__email', 'infl__nickname', 'fan_nickname', 'room')
     ordering = ('-created_at',)
 
 @admin.register(CallRecording)

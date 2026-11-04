@@ -1,11 +1,14 @@
+import calendar
+from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 from ninja import Router
 from ninja.errors import HttpError
 from django.shortcuts import get_object_or_404
 from account.models import IntalkingUser
-from infllist.models import InflList, InflBlock
+from infllist.models import InflList, InflBlock, CallSettle
 from infllist.schema import (
   AddInflSchema, InflListOutputSchema, CallEndSchema, FanListOutputSchema, FanDetailOutputSchema, FanMemoSchema, FanBlockSchema,
-  RecordingOfferSchema, RecordingAnswerSchema, RecordingStopSchema,
+  RecordingOfferSchema, RecordingAnswerSchema, RecordingStopSchema, SettleOutputSchema,
 )
 from infllist import recorder
 
@@ -139,4 +142,41 @@ def call_end(request, payload: CallEndSchema):
     raise HttpError(400, '잘못된 통화 관계입니다')
 
   InflList.add_call_record(fan=fan, infl=infl, duration=payload.duration)
+  if payload.room:
+    CallSettle.objects.filter(room=payload.room, fan=fan, infl=infl).update(duration=payload.duration)
   return {'message': '통화 기록이 저장되었습니다'}
+
+KST = ZoneInfo('Asia/Seoul')
+
+# 인플 정산 내역: 기간(start~end, KST 날짜) 내 통화 정산을 월별로 묶어 반환
+@router.get('settle/', response=SettleOutputSchema)
+def get_settle(request, start: date, end: date):
+  if request.auth.fan != 'INFL':
+    raise HttpError(403, '인플루언서만 조회할 수 있습니다')
+  if start > end:
+    raise HttpError(400, '시작일이 종료일보다 늦습니다')
+
+  since = datetime.combine(start, time.min, tzinfo=KST)
+  until = datetime.combine(end + timedelta(days=1), time.min, tzinfo=KST)
+  settles = CallSettle.objects.filter(infl=request.auth, created_at__gte=since, created_at__lt=until)
+
+  months = {}
+  for s in settles:   # ordering: -created_at → 최근 월/통화가 위로
+    at = s.created_at.astimezone(KST)
+    key = (at.year, at.month)
+    if key not in months:
+      last_day = calendar.monthrange(at.year, at.month)[1]
+      months[key] = {
+        'year': at.year, 'month': at.month,
+        'start': str(max(start, date(at.year, at.month, 1))),
+        'end': str(min(end, date(at.year, at.month, last_day))),
+        'total': 0, 'items': [],
+      }
+    months[key]['total'] += s.infl_amount
+    months[key]['items'].append({
+      'id': s.id, 'fan_nickname': s.fan_nickname,
+      'created_at': at.strftime('%Y-%m-%d %H:%M'),
+      'duration': s.duration, 'amount': s.infl_amount,
+    })
+
+  return {'total': sum(m['total'] for m in months.values()), 'months': list(months.values())}

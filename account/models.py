@@ -34,6 +34,7 @@ class IntalkingUser(AbstractUser):
   info = models.TextField(null=True, blank=True)
   point = models.IntegerField(default=0)
   callmode = models.BooleanField(default=True)
+  is_famous = models.BooleanField(default=False)   # 유명 인플: 정산 배분율 인플 50% / 회사 40% (일반 40% / 50%)
   token_version = models.IntegerField(default=0)
   login_fail_count = models.IntegerField(default=0)
   is_approved = models.BooleanField(default=True)   # 코드 없는 인플 가입신청은 False(관리자 승인 대기)

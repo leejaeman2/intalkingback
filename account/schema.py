@@ -141,6 +141,10 @@ class PointChargeSchema(Schema):
   minutes: int
   price: int
 
+class CallChargeSchema(Schema):
+  peer_email: str | None = None   # 통화 중인 인플 → 정산 적립 대상
+  room: str | None = None         # 같은 통화의 20분 블록들을 정산 1건으로 묶는 키
+
 class InflWithNoticeSchema(Schema):
   email: str
   username: str
