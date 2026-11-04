@@ -42,6 +42,7 @@ class InflList(models.Model):
   fan = models.ForeignKey(IntalkingUser, on_delete=models.CASCADE, related_name='infl_list')
   infl = models.ForeignKey(IntalkingUser, on_delete=models.CASCADE, related_name='fan_list')
   duration = models.IntegerField(default=0)
+  memo = models.TextField(blank=True, default='')   # 인플이 팬에 대해 남기는 메모 (인플만 조회/수정)
   last = models.DateTimeField(auto_now=True)
   created_at = models.DateTimeField(auto_now_add=True)
 

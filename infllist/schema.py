@@ -1,5 +1,5 @@
 from ninja import Schema
-from pydantic import EmailStr
+from pydantic import EmailStr, Field
 
 class AddInflSchema(Schema):
   infl_email: EmailStr
@@ -38,9 +38,14 @@ class FanDetailOutputSchema(Schema):
   food: str | None = None
   mbti: str | None = None
   birth: str | None = None
+  memo: str = ''
   duration: int
   last: str
   created_at: str
+
+class FanMemoSchema(Schema):
+  email: str
+  memo: str = Field(max_length=1000)
 
 class RecordingOfferSchema(Schema):
   room: str

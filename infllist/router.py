@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from account.models import IntalkingUser
 from infllist.models import InflList
 from infllist.schema import (
-  AddInflSchema, InflListOutputSchema, CallEndSchema, FanListOutputSchema, FanDetailOutputSchema,
+  AddInflSchema, InflListOutputSchema, CallEndSchema, FanListOutputSchema, FanDetailOutputSchema, FanMemoSchema,
   RecordingOfferSchema, RecordingAnswerSchema, RecordingStopSchema,
 )
 from infllist import recorder
@@ -99,10 +99,19 @@ def get_fan_detail(request, email: str):
     'food': fan.food,
     'mbti': fan.mbti,
     'birth': str(fan.birth) if fan.birth else None,
+    'memo': item.memo,
     'duration': item.duration,
     'last': str(item.last),
     'created_at': str(item.created_at),
   }
+
+# update_fields 로 memo 만 저장 → last(auto_now) 가 갱신되지 않아 최근 통화 정렬 유지
+@router.patch('fans/memo/', response={200: dict})
+def update_fan_memo(request, payload: FanMemoSchema):
+  item = get_object_or_404(InflList, infl=request.auth, fan__email=payload.email)
+  item.memo = payload.memo.strip()
+  item.save(update_fields=['memo'])
+  return {'message': '메모가 저장되었습니다', 'memo': item.memo}
 
 @router.post('call-end/', response={200: dict})
 def call_end(request, payload: CallEndSchema):
