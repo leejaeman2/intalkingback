@@ -1,14 +1,16 @@
+import httpx
 from ninja import Router, File, Form
 from ninja.files import UploadedFile
 from ninja.errors import HttpError
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
+from django.conf import settings
 from django.db import transaction
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from account.models import IntalkingUser, DeletedUser, InflCode
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
-  TokenSchema, LoginErrorSchema, SigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
+  TokenSchema, LoginErrorSchema, SigninSchema, KakaoSigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
   EditFanSchema, EditInflSchema,
   PointChargeSchema, CallChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema,
   FindUseridSchema, ResetPasswordSchema, PushTokenSchema, TokenRefreshOutputSchema)
@@ -68,13 +70,46 @@ def check_signup_email(email):
     raise HttpError(400, '동일한 이메일이 존재합니다')
   return email
 
+KAKAO_ME_URL = 'https://kapi.kakao.com/v2/user/me'
+KAKAO_TOKEN_INFO_URL = 'https://kapi.kakao.com/v1/user/access_token_info'
+
+def fetch_kakao_user(access_token):
+  # 앱이 보낸 카카오 액세스 토큰으로 카카오 서버에서 회원번호/이메일 조회 → (kakao_id, email)
+  headers = {'Authorization': f'Bearer {access_token}'}
+  try:
+    if settings.KAKAO_APP_ID:
+      info = httpx.get(KAKAO_TOKEN_INFO_URL, headers=headers, timeout=5)
+      if info.status_code != 200 or str(info.json().get('app_id')) != str(settings.KAKAO_APP_ID):
+        raise HttpError(401, '카카오 인증 정보가 올바르지 않습니다')
+    res = httpx.get(KAKAO_ME_URL, headers=headers, timeout=5)
+  except httpx.HTTPError:
+    raise HttpError(502, '카카오 서버에 연결할 수 없습니다')
+  if res.status_code != 200:
+    raise HttpError(401, '카카오 인증이 만료되었습니다. 다시 시도해주세요')
+  data = res.json()
+  return str(data['id']), (data.get('kakao_account') or {}).get('email')
+
+def resolve_signup_login(userid, password, kakao_token):
+  # 로그인 수단 결정 → (username, 해시 비밀번호, kakao_id)
+  # 카카오 가입: 아이디는 kakao_{회원번호}, 비밀번호 로그인 불가(unusable)
+  if kakao_token:
+    kakao_id, _ = fetch_kakao_user(kakao_token)
+    if IntalkingUser.objects.filter(kakao_id=kakao_id).exists():
+      raise HttpError(400, '이미 가입된 카카오 계정입니다')
+    return f'kakao_{kakao_id}', make_password(None), kakao_id
+  if not (userid or '').strip() or not password:
+    raise HttpError(400, '아이디와 비밀번호를 입력해주세요')
+  return userid, make_password(password), None
+
 @router.post('signup/fan/', response=SignupOutputSchema, auth=None)
 def signupFan(request, payload: SignupFanSchema):
   email = check_signup_email(payload.email)
+  username, password, kakao_id = resolve_signup_login(payload.userid, payload.password, payload.kakao_token)
   user = IntalkingUser.objects.create(
     email=email,
-    username=payload.userid,
-    password=make_password(payload.password),
+    username=username,
+    password=password,
+    kakao_id=kakao_id,
     nickname=payload.nickname,
     phone=payload.phone,
     charnum=payload.character,
@@ -93,9 +128,10 @@ def verifyInflCode(request, payload: VerifyCodeSchema):
 
 @router.post('signup/infl/', response=SignupOutputSchema, auth=None)
 def signupInfl(request,
-  userid: str = Form(...),
+  userid: str = Form(None),
   email: str = Form(...),
-  password: str = Form(...),
+  password: str = Form(None),
+  kakao_token: str = Form(None),
   nickname: str = Form(...), phone: str = Form(...),
   bank: str = Form(...), account: str = Form(...),
   code: str = Form(...), hobby: str = Form(...),
@@ -111,6 +147,7 @@ def signupInfl(request,
   photo8: UploadedFile = File(None),
 ):
   email = check_signup_email(email)
+  username, password, kakao_id = resolve_signup_login(userid, password, kakao_token)
   code = (code or '').strip()
   infl_code = None
   if code:
@@ -120,8 +157,8 @@ def signupInfl(request,
       raise HttpError(400, '유효하지 않은 인플루언서 코드입니다')
 
   user = IntalkingUser.objects.create(
-    email=email, username=userid,
-    password=make_password(password),
+    email=email, username=username,
+    password=password, kakao_id=kakao_id,
     nickname=nickname, phone=phone,
     bank=bank, account=account, code=code or None,
     hobby=hobby, food=food, mbti=mbti, birth=birth,
@@ -167,13 +204,16 @@ def signin(request, payload: SigninSchema):
     authuser.login_fail_count = 0
     authuser.save(update_fields=['login_fail_count'])
 
+  return issue_login(authuser, payload.force)
+
+def issue_login(authuser, force):
   # 관리자 승인 대기 계정(코드 없이 가입 신청)은 로그인 차단
   if not authuser.is_approved:
     return 403, {'code': 'NOT_APPROVED', 'locked': False,
       'message': '가입 신청이 접수되었습니다. 관리자 승인 후 로그인할 수 있습니다.'}
 
   # 다른 기기에서 접속 중이면, force 아닌 경우 확인 요청
-  if not payload.force and online_users.get(authuser.email):
+  if not force and online_users.get(authuser.email):
     return 409, {'code': 'ALREADY_LOGGED_IN', 'locked': False,
       'message': '다른 기기에 로그인되어 있습니다. 그래도 로그인하시겠습니까?'}
 
@@ -195,6 +235,15 @@ def signin(request, payload: SigninSchema):
     "photo1": authuser.photo1.url if authuser.photo1 else None,
     "fan": authuser.fan
   }
+
+@router.post('signin/kakao/', response={200: TokenSchema, 403: LoginErrorSchema, 404: LoginErrorSchema, 409: LoginErrorSchema}, auth=None)
+def signinKakao(request, payload: KakaoSigninSchema):
+  kakao_id, kakao_email = fetch_kakao_user(payload.access_token)
+  user = IntalkingUser.objects.filter(kakao_id=kakao_id).first()
+  if not user:
+    return 404, {'code': 'NEED_SIGNUP', 'email': kakao_email,
+      'message': '가입되지 않은 카카오 계정입니다. 회원가입을 진행해주세요.'}
+  return issue_login(user, payload.force)
 
 @router.post('refresh/', response=TokenRefreshOutputSchema, auth=None)
 def getRefresh(request, payload: TokenRefreshInputSchema):

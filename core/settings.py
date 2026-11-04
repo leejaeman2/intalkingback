@@ -230,3 +230,6 @@ APNS_BUNDLE_ID = os.getenv('APNS_BUNDLE_ID', '')
 APNS_USE_SANDBOX = env_bool('APNS_USE_SANDBOX', DEBUG)
 # Android: FCM HTTP v1 (Firebase 콘솔 > 서비스 계정 > 비공개 키 JSON)
 FCM_SERVICE_ACCOUNT_FILE = os.getenv('FCM_SERVICE_ACCOUNT_FILE', '')
+
+# 카카오 로그인: 앱이 보낸 액세스 토큰이 우리 앱에서 발급된 것인지 확인 (카카오 디벨로퍼스 > 앱 ID)
+KAKAO_APP_ID = os.getenv('KAKAO_APP_ID', '')

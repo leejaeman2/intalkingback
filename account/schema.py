@@ -10,6 +10,8 @@ from account.models import IntalkingUser
 PW_RULE = re.compile(r'^(?=.*[A-Za-z])(?=.*\d).{10,}$')
 
 def validate_password(value):
+  if value is None:     # 카카오 가입은 비밀번호 없음
+    return value
   if not PW_RULE.match(value or ''):
     raise ValueError('비밀번호는 영문과 숫자를 조합해 10자리 이상이어야 합니다.')
   return value
@@ -18,6 +20,10 @@ class SigninSchema(Schema):
   userid: str           # 로그인 아이디 (username)
   password: str
   force: bool = False   # 다른 기기 로그인 경고 후 강제 로그인 여부
+
+class KakaoSigninSchema(Schema):
+  access_token: str     # 앱에서 카카오 SDK로 받은 액세스 토큰
+  force: bool = False
 
 class VerifyCodeSchema(Schema):
   code: str
@@ -39,9 +45,10 @@ class ResetPasswordSchema(Schema):
   _check_password = field_validator('password')(validate_password)
 
 class SignupFanSchema(Schema):
-  userid: str
+  userid: Optional[str] = None        # 카카오 가입이면 생략 (kakao_{회원번호}로 생성)
   email: EmailStr
-  password: str
+  password: Optional[str] = None
+  kakao_token: Optional[str] = None
   nickname: str
   phone: str
   character: int
@@ -109,10 +116,11 @@ MeSchema = Annotated[Union[FanMeSchema, InflMeSchema], Field(discriminator='fan'
 IntalkingUserSchema = create_schema(IntalkingUser, exclude=_AUTH_EXCLUDE)
 
 class LoginErrorSchema(Schema):
-  code: str               # NO_USER | WRONG_PASSWORD | LOCKED
+  code: str               # NO_USER | WRONG_PASSWORD | LOCKED | NEED_SIGNUP
   message: str
   fail_count: int = 0
   locked: bool = False
+  email: str | None = None   # NEED_SIGNUP: 카카오 계정 이메일 (가입 폼 기본값)
 
 class TokenRefreshOutputSchema(Schema):
   access: str
