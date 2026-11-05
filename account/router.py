@@ -10,7 +10,7 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from account.models import IntalkingUser, DeletedUser, InflCode
 from account.schema import (SignupFanSchema, SignupInflSchema, SignupOutputSchema, InflSchema,
-  TokenSchema, LoginErrorSchema, SigninSchema, KakaoSigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
+  TokenSchema, LoginErrorSchema, SigninSchema, KakaoSigninSchema, GoogleSigninSchema, IsLoginSchema, IntalkingUserSchema, FanMeSchema, InflMeSchema, MeSchema,
   EditFanSchema, EditInflSchema,
   PointChargeSchema, CallChargeSchema, InflWithNoticeSchema, VerifyCodeSchema, CheckEmailSchema, CheckUseridSchema,
   FindUseridSchema, ResetPasswordSchema, PushTokenSchema, TokenRefreshOutputSchema)
@@ -89,27 +89,51 @@ def fetch_kakao_user(access_token):
   data = res.json()
   return str(data['id']), (data.get('kakao_account') or {}).get('email')
 
-def resolve_signup_login(userid, password, kakao_token):
-  # 로그인 수단 결정 → (username, 해시 비밀번호, kakao_id)
-  # 카카오 가입: 아이디는 kakao_{회원번호}, 비밀번호 로그인 불가(unusable)
+GOOGLE_TOKEN_INFO_URL = 'https://oauth2.googleapis.com/tokeninfo'
+GOOGLE_ISSUERS = ('accounts.google.com', 'https://accounts.google.com')
+
+def fetch_google_user(id_token):
+  # 앱이 보낸 구글 ID 토큰을 구글 서버에서 검증(서명/만료) → (google_id, email)
+  try:
+    res = httpx.get(GOOGLE_TOKEN_INFO_URL, params={'id_token': id_token}, timeout=5)
+  except httpx.HTTPError:
+    raise HttpError(502, '구글 서버에 연결할 수 없습니다')
+  if res.status_code != 200:
+    raise HttpError(401, '구글 인증이 만료되었습니다. 다시 시도해주세요')
+  data = res.json()
+  if data.get('iss') not in GOOGLE_ISSUERS:
+    raise HttpError(401, '구글 인증 정보가 올바르지 않습니다')
+  if settings.GOOGLE_CLIENT_IDS and data.get('aud') not in settings.GOOGLE_CLIENT_IDS:
+    raise HttpError(401, '구글 인증 정보가 올바르지 않습니다')
+  email = data.get('email') if str(data.get('email_verified')).lower() == 'true' else None
+  return str(data['sub']), email
+
+def resolve_signup_login(userid, password, kakao_token, google_token=None):
+  # 로그인 수단 결정 → (username, 해시 비밀번호, {'kakao_id' | 'google_id': ...})
+  # 소셜 가입: 아이디는 kakao_{회원번호} / google_{sub}, 비밀번호 로그인 불가(unusable)
   if kakao_token:
     kakao_id, _ = fetch_kakao_user(kakao_token)
     if IntalkingUser.objects.filter(kakao_id=kakao_id).exists():
       raise HttpError(400, '이미 가입된 카카오 계정입니다')
-    return f'kakao_{kakao_id}', make_password(None), kakao_id
+    return f'kakao_{kakao_id}', make_password(None), {'kakao_id': kakao_id}
+  if google_token:
+    google_id, _ = fetch_google_user(google_token)
+    if IntalkingUser.objects.filter(google_id=google_id).exists():
+      raise HttpError(400, '이미 가입된 구글 계정입니다')
+    return f'google_{google_id}', make_password(None), {'google_id': google_id}
   if not (userid or '').strip() or not password:
     raise HttpError(400, '아이디와 비밀번호를 입력해주세요')
-  return userid, make_password(password), None
+  return userid, make_password(password), {}
 
 @router.post('signup/fan/', response=SignupOutputSchema, auth=None)
 def signupFan(request, payload: SignupFanSchema):
   email = check_signup_email(payload.email)
-  username, password, kakao_id = resolve_signup_login(payload.userid, payload.password, payload.kakao_token)
+  username, password, social = resolve_signup_login(payload.userid, payload.password, payload.kakao_token, payload.google_token)
   user = IntalkingUser.objects.create(
     email=email,
     username=username,
     password=password,
-    kakao_id=kakao_id,
+    **social,
     nickname=payload.nickname,
     phone=payload.phone,
     charnum=payload.character,
@@ -132,6 +156,7 @@ def signupInfl(request,
   email: str = Form(...),
   password: str = Form(None),
   kakao_token: str = Form(None),
+  google_token: str = Form(None),
   nickname: str = Form(...), phone: str = Form(...),
   bank: str = Form(...), account: str = Form(...),
   code: str = Form(...), hobby: str = Form(...),
@@ -147,7 +172,7 @@ def signupInfl(request,
   photo8: UploadedFile = File(None),
 ):
   email = check_signup_email(email)
-  username, password, kakao_id = resolve_signup_login(userid, password, kakao_token)
+  username, password, social = resolve_signup_login(userid, password, kakao_token, google_token)
   code = (code or '').strip()
   infl_code = None
   if code:
@@ -158,7 +183,7 @@ def signupInfl(request,
 
   user = IntalkingUser.objects.create(
     email=email, username=username,
-    password=password, kakao_id=kakao_id,
+    password=password, **social,
     nickname=nickname, phone=phone,
     bank=bank, account=account, code=code or None,
     hobby=hobby, food=food, mbti=mbti, birth=birth,
@@ -243,6 +268,15 @@ def signinKakao(request, payload: KakaoSigninSchema):
   if not user:
     return 404, {'code': 'NEED_SIGNUP', 'email': kakao_email,
       'message': '가입되지 않은 카카오 계정입니다. 회원가입을 진행해주세요.'}
+  return issue_login(user, payload.force)
+
+@router.post('signin/google/', response={200: TokenSchema, 403: LoginErrorSchema, 404: LoginErrorSchema, 409: LoginErrorSchema}, auth=None)
+def signinGoogle(request, payload: GoogleSigninSchema):
+  google_id, google_email = fetch_google_user(payload.id_token)
+  user = IntalkingUser.objects.filter(google_id=google_id).first()
+  if not user:
+    return 404, {'code': 'NEED_SIGNUP', 'email': google_email,
+      'message': '가입되지 않은 구글 계정입니다. 회원가입을 진행해주세요.'}
   return issue_login(user, payload.force)
 
 @router.post('refresh/', response=TokenRefreshOutputSchema, auth=None)

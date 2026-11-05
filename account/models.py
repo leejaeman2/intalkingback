@@ -36,6 +36,7 @@ class IntalkingUser(AbstractUser):
   callmode = models.BooleanField(default=True)
   is_famous = models.BooleanField(default=False)   # 유명 인플: 정산 배분율 인플 50% / 회사 40% (일반 40% / 50%)
   kakao_id = models.CharField(max_length=64, unique=True, null=True, blank=True)   # 카카오 회원번호 (카카오 로그인 연동)
+  google_id = models.CharField(max_length=64, unique=True, null=True, blank=True)  # 구글 계정 고유 ID(sub) (구글 로그인 연동)
   token_version = models.IntegerField(default=0)
   login_fail_count = models.IntegerField(default=0)
   is_approved = models.BooleanField(default=True)   # 코드 없는 인플 가입신청은 False(관리자 승인 대기)

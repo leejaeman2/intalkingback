@@ -10,7 +10,7 @@ from account.models import IntalkingUser
 PW_RULE = re.compile(r'^(?=.*[A-Za-z])(?=.*\d).{10,}$')
 
 def validate_password(value):
-  if value is None:     # 카카오 가입은 비밀번호 없음
+  if value is None:     # 카카오/구글 가입은 비밀번호 없음
     return value
   if not PW_RULE.match(value or ''):
     raise ValueError('비밀번호는 영문과 숫자를 조합해 10자리 이상이어야 합니다.')
@@ -23,6 +23,10 @@ class SigninSchema(Schema):
 
 class KakaoSigninSchema(Schema):
   access_token: str     # 앱에서 카카오 SDK로 받은 액세스 토큰
+  force: bool = False
+
+class GoogleSigninSchema(Schema):
+  id_token: str         # 앱에서 구글 SDK로 받은 ID 토큰
   force: bool = False
 
 class VerifyCodeSchema(Schema):
@@ -45,10 +49,11 @@ class ResetPasswordSchema(Schema):
   _check_password = field_validator('password')(validate_password)
 
 class SignupFanSchema(Schema):
-  userid: Optional[str] = None        # 카카오 가입이면 생략 (kakao_{회원번호}로 생성)
+  userid: Optional[str] = None        # 카카오/구글 가입이면 생략 (kakao_{회원번호} / google_{sub}로 생성)
   email: EmailStr
   password: Optional[str] = None
   kakao_token: Optional[str] = None
+  google_token: Optional[str] = None
   nickname: str
   phone: str
   character: int
@@ -120,7 +125,7 @@ class LoginErrorSchema(Schema):
   message: str
   fail_count: int = 0
   locked: bool = False
-  email: str | None = None   # NEED_SIGNUP: 카카오 계정 이메일 (가입 폼 기본값)
+  email: str | None = None   # NEED_SIGNUP: 카카오/구글 계정 이메일 (가입 폼 기본값)
 
 class TokenRefreshOutputSchema(Schema):
   access: str

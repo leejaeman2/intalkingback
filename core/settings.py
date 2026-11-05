@@ -233,3 +233,7 @@ FCM_SERVICE_ACCOUNT_FILE = os.getenv('FCM_SERVICE_ACCOUNT_FILE', '')
 
 # 카카오 로그인: 앱이 보낸 액세스 토큰이 우리 앱에서 발급된 것인지 확인 (카카오 디벨로퍼스 > 앱 ID)
 KAKAO_APP_ID = os.getenv('KAKAO_APP_ID', '')
+
+# 구글 로그인: 앱이 보낸 ID 토큰의 aud(클라이언트 ID) 검증용 (Google Cloud > 사용자 인증 정보 > OAuth 클라이언트 ID)
+# 앱의 webClientId 로 발급된 토큰이므로 웹 클라이언트 ID 를 넣는다. 여러 개면 콤마로 구분
+GOOGLE_CLIENT_IDS = [c.strip() for c in os.getenv('GOOGLE_CLIENT_IDS', '').split(',') if c.strip()]
